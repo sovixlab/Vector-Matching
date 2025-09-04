@@ -27,7 +27,10 @@ def health_check(request):
         db_status = f"error: {str(e)}"
     
     # Test OpenAI API key availability
-    openai_status = "ok" if settings.OPENAI_API_KEY else "missing"
+    try:
+        openai_status = "ok" if settings.OPENAI_API_KEY else "missing"
+    except Exception as e:
+        openai_status = f"error: {str(e)}"
     
     response_data = {
         "status": "ok",
