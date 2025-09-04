@@ -28,6 +28,4 @@ services:
   # PostgreSQL database
   - type: pserv
     name: vector-matching-db
-    env: postgresql
     plan: free
-    ipAllowList: []
