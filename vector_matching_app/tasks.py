@@ -82,13 +82,17 @@ CV tekst:
 """ + candidate.cv_text[:4000]  # Limiteer input voor OpenAI
         
         # OpenAI API call
-        openai_client = get_openai_client()
-        messages = [
-            {"role": "system", "content": "Je bent een expert in het extraheren van gestructureerde data uit Nederlandse CV's. Antwoord altijd met geldige JSON."},
-            {"role": "user", "content": prompt}
-        ]
-        
-        response = openai_client.chat(messages, model="gpt-3.5-turbo")
+        try:
+            openai_client = get_openai_client()
+            messages = [
+                {"role": "system", "content": "Je bent een expert in het extraheren van gestructureerde data uit Nederlandse CV's. Antwoord altijd met geldige JSON."},
+                {"role": "user", "content": prompt}
+            ]
+            
+            response = openai_client.chat(messages, model="gpt-3.5-turbo")
+        except Exception as e:
+            logger.error(f"OpenAI API error bij CV parsing voor kandidaat {candidate_id}: {str(e)}")
+            raise ValueError(f"OpenAI API fout: {str(e)}")
         
         # Parse JSON response
         try:
@@ -161,13 +165,17 @@ CV tekst:
 """ + candidate.cv_text[:4000]  # Limiteer input voor OpenAI
         
         # OpenAI API call
-        openai_client = get_openai_client()
-        messages = [
-            {"role": "system", "content": "Je bent een expert in het schrijven van zakelijke profiel samenvattingen voor Nederlandse kandidaten. Schrijf helder en beknopt."},
-            {"role": "user", "content": prompt}
-        ]
-        
-        response = openai_client.chat(messages, model="gpt-3.5-turbo")
+        try:
+            openai_client = get_openai_client()
+            messages = [
+                {"role": "system", "content": "Je bent een expert in het schrijven van zakelijke profiel samenvattingen voor Nederlandse kandidaten. Schrijf helder en beknopt."},
+                {"role": "user", "content": prompt}
+            ]
+            
+            response = openai_client.chat(messages, model="gpt-3.5-turbo")
+        except Exception as e:
+            logger.error(f"OpenAI API error bij profiel samenvatting voor kandidaat {candidate_id}: {str(e)}")
+            raise ValueError(f"OpenAI API fout: {str(e)}")
         
         # Sla profiel tekst op
         candidate.profile_text = response.strip()
@@ -193,8 +201,12 @@ def embed_profile_text(candidate_id):
             raise ValueError("Geen profiel tekst gevonden")
         
         # OpenAI embedding
-        openai_client = get_openai_client()
-        embedding = openai_client.embed(candidate.profile_text, model="text-embedding-3-small")
+        try:
+            openai_client = get_openai_client()
+            embedding = openai_client.embed(candidate.profile_text, model="text-embedding-3-small")
+        except Exception as e:
+            logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
+            raise ValueError(f"OpenAI API fout: {str(e)}")
         
         # Sla embedding op
         candidate.embedding = embedding

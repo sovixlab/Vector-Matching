@@ -15,7 +15,11 @@ class OpenAIClient:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is niet geconfigureerd")
         
-        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        # Maak client aan zonder extra parameters
+        self.client = openai.OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=30.0
+        )
     
     def embed(self, text: str, model: str = "text-embedding-3-small") -> list[float]:
         """
