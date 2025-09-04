@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Kandidaten - Vector Matching{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-base-content">Kandidaten</h1>
+        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Kandidaat toevoegen
+        </button>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Upload Dropzone -->
+    <div class="card bg-base-200 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title text-base-content mb-4">CV Upload</h2>
+            
+            <!-- Dropzone -->
+            <div id="dropzone" class="border-2 border-dashed border-base-content/20 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+                <div class="flex flex-col items-center">
+                    <svg class="w-12 h-12 text-base-content/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="text-base-content/60 mb-2">
+                        Sleep PDF bestanden hierheen of klik om te selecteren
+                    </p>
+                    <p class="text-sm text-base-content/40">
+                        Maximaal 100 PDF bestanden tegelijk
+                    </p>
+                </div>
+            </div>
+
+            <!-- Hidden file input -->
+            <input type="file" id="file-input" name="files" multiple accept=".pdf" class="hidden">
+            
+            <!-- Upload progress -->
+            <div id="upload-progress" class="hidden mt-4">
+                <div class="flex items-center gap-2">
+                    <span class="loading loading-spinner loading-sm"></span>
+                    <span class="text-sm text-base-content/60">Uploaden...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kandidaten Tabel -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-base-content mb-4">Kandidaten Overzicht</h2>
+            
+            {% if candidates %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-base-content">Naam</th>
+                                <th class="text-base-content">E-mailadres</th>
+                                <th class="text-base-content">Opleidingsniveau</th>
+                                <th class="text-base-content">Jaren ervaring</th>
+                                <th class="text-base-content">Laatst bijgewerkt</th>
+                                <th class="text-base-content">Embed-status</th>
+                                <th class="text-base-content">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in candidates %}
+                            <tr>
+                                <td class="text-base-content">
+                                    <div class="font-medium">{{ candidate.name|default:"Niet opgegeven" }}</div>
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ candidate.email|default:"Niet opgegeven" }}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ candidate.education_level|default:"Niet opgegeven" }}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {% if candidate.years_experience %}
+                                        {{ candidate.years_experience }} jaar
+                                    {% else %}
+                                        Niet opgegeven
+                                    {% endif %}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ candidate.updated_at|date:"d-m-Y H:i" }}
+                                </td>
+                                <td>
+                                    <div class="badge {{ candidate.embed_status_badge_class }} gap-1">
+                                        {{ candidate.embed_status_icon }}
+                                        {{ candidate.get_embed_status_display }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{% url 'vector_matching_app:kandidaat_detail' candidate.id %}" 
+                                       class="btn btn-sm btn-outline btn-primary">
+                                        Bekijk
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 text-base-content/20 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-base-content/60 mb-2">Geen kandidaten gevonden</h3>
+                    <p class="text-base-content/40">Upload je eerste CV om te beginnen!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Upload Form (hidden) -->
+<form id="upload-form" action="{% url 'vector_matching_app:kandidaten_upload' %}" method="post" enctype="multipart/form-data" class="hidden">
+    {% csrf_token %}
+    <input type="file" id="upload-files" name="files" multiple accept=".pdf">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const uploadForm = document.getElementById('upload-form');
+    const uploadFiles = document.getElementById('upload-files');
+    const uploadProgress = document.getElementById('upload-progress');
+
+    // Click to select files
+    dropzone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // File input change
+    fileInput.addEventListener('change', handleFiles);
+
+    // Drag and drop
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-primary', 'bg-primary/5');
+    });
+
+    dropzone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-primary', 'bg-primary/5');
+        
+        const files = e.dataTransfer.files;
+        handleFileList(files);
+    });
+
+    function handleFiles(e) {
+        const files = e.target.files;
+        handleFileList(files);
+    }
+
+    function handleFileList(files) {
+        // Validatie
+        if (files.length === 0) return;
+        
+        if (files.length > 100) {
+            alert('Maximaal 100 bestanden tegelijk toegestaan.');
+            return;
+        }
+
+        // Controleer bestandstypen
+        const invalidFiles = [];
+        for (let file of files) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                invalidFiles.push(file.name);
+            }
+        }
+
+        if (invalidFiles.length > 0) {
+            alert(`Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: ${invalidFiles.join(', ')}`);
+            return;
+        }
+
+        // Upload bestanden
+        uploadFiles.files = files;
+        uploadProgress.classList.remove('hidden');
+        
+        uploadForm.submit();
+    }
+});
+</script>
+{% endblock %}

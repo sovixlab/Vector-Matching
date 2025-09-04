@@ -6,4 +6,7 @@ app_name = 'vector_matching_app'
 urlpatterns = [
     path('', views.index, name='index'),
     path('healthz', views.health_check, name='health_check'),
+    path('kandidaten/', views.kandidaten_list_view, name='kandidaten'),
+    path('kandidaten/upload/', views.kandidaten_upload_view, name='kandidaten_upload'),
+    path('kandidaten/<int:candidate_id>/', views.kandidaat_detail_view, name='kandidaat_detail'),
 ]
