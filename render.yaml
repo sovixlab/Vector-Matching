@@ -1,0 +1,37 @@
+services:
+  # Web service
+  - type: web
+    name: vector-matching-web
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      npm install
+      npm run build-css
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: gunicorn vector_matching.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: vector-matching-web.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://vector-matching-web.onrender.com
+      - key: OPENAI_API_KEY
+        sync: false  # Moet handmatig worden ingesteld
+
+  # PostgreSQL database
+  - type: pserv
+    name: vector-matching-db
+    env: postgresql
+    plan: free
+    ipAllowList: []
+    postgresMajorVersion: 15
+    extensions:
+      - name: vector
+        version: "0.5.1"

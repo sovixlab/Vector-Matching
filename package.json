@@ -1,0 +1,18 @@
+{
+  "name": "vector-matching",
+  "version": "1.0.0",
+  "description": "Django Vector Matching application with TailwindCSS and DaisyUI",
+  "scripts": {
+    "build-css": "npx tailwindcss -i ./assets/tailwind.css -o ./static/css/tailwind.css --minify",
+    "build-css-dev": "npx tailwindcss -i ./assets/tailwind.css -o ./static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.32",
+    "autoprefixer": "^10.4.16",
+    "daisyui": "^4.4.19"
+  },
+  "keywords": ["django", "tailwindcss", "daisyui", "vector", "matching"],
+  "author": "",
+  "license": "MIT"
+}

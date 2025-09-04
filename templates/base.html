@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vector Matching{% endblock %}</title>
+    {% load static %}
+    <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>">
+</head>
+<body class="min-h-screen bg-base-100">
+    <!-- Navigation -->
+    <div class="navbar bg-base-200 shadow-lg">
+        <div class="navbar-start">
+            <a class="btn btn-ghost text-xl" href="{% url 'vector_matching_app:index' %}">
+                🔍 Vector Matching
+            </a>
+        </div>
+        <div class="navbar-end">
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </div>
+                <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                    <li><a href="{% url 'vector_matching_app:index' %}">Home</a></li>
+                    <li><a href="{% url 'vector_matching_app:health_check' %}">Health Check</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer footer-center p-4 bg-base-200 text-base-content">
+        <aside>
+            <p>Vector Matching - Powered by Django, TailwindCSS & DaisyUI</p>
+        </aside>
+    </footer>
+</body>
+</html>
