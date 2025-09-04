@@ -29,3 +29,7 @@ databases:
   # PostgreSQL database
   - name: vector-matching-db
     plan: free
+
+  # Redis for Celery
+  - name: vector-matching-redis
+    plan: free

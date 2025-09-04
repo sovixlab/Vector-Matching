@@ -9,4 +9,5 @@ urlpatterns = [
     path('kandidaten/', views.kandidaten_list_view, name='kandidaten'),
     path('kandidaten/upload/', views.kandidaten_upload_view, name='kandidaten_upload'),
     path('kandidaten/<int:candidate_id>/', views.kandidaat_detail_view, name='kandidaat_detail'),
+    path('kandidaten/<int:candidate_id>/reprocess/', views.kandidaat_reprocess_view, name='kandidaat_reprocess'),
 ]

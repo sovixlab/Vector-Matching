@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import Candidate
+from .tasks import process_candidate_pipeline, reprocess_candidate
 import json
 import os
 
@@ -79,6 +80,14 @@ def kandidaten_upload_view(request):
                     embed_status='queued'
                 )
                 created_candidates.append(candidate)
+                
+                # Start verwerkingspipeline
+                try:
+                    process_candidate_pipeline.delay(candidate.id)
+                    messages.info(request, f'Verwerking gestart voor {file.name}')
+                except Exception as e:
+                    messages.warning(request, f'Verwerking kon niet gestart worden voor {file.name}: {str(e)}')
+                    
             except Exception as e:
                 messages.error(request, f'Fout bij uploaden van {file.name}: {str(e)}')
         
@@ -99,3 +108,22 @@ def kandidaat_detail_view(request, candidate_id):
     except Candidate.DoesNotExist:
         messages.error(request, 'Kandidaat niet gevonden.')
         return redirect('vector_matching_app:kandidaten')
+
+
+@require_http_methods(["POST"])
+def kandidaat_reprocess_view(request, candidate_id):
+    """Herstart de verwerkingspipeline voor een kandidaat."""
+    try:
+        candidate = Candidate.objects.get(id=candidate_id)
+        
+        # Start herverwerking
+        try:
+            reprocess_candidate.delay(candidate_id)
+            messages.success(request, f'Herverwerking gestart voor {candidate.name or f"kandidaat {candidate_id}"}')
+        except Exception as e:
+            messages.error(request, f'Fout bij starten herverwerking: {str(e)}')
+            
+    except Candidate.DoesNotExist:
+        messages.error(request, 'Kandidaat niet gevonden.')
+    
+    return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)

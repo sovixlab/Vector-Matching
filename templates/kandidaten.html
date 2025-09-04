@@ -73,8 +73,9 @@
                                 <th class="text-base-content">E-mailadres</th>
                                 <th class="text-base-content">Opleidingsniveau</th>
                                 <th class="text-base-content">Jaren ervaring</th>
+                                <th class="text-base-content">Locatie</th>
                                 <th class="text-base-content">Laatst bijgewerkt</th>
-                                <th class="text-base-content">Embed-status</th>
+                                <th class="text-base-content">Status</th>
                                 <th class="text-base-content">Acties</th>
                             </tr>
                         </thead>
@@ -96,6 +97,9 @@
                                     {% else %}
                                         Niet opgegeven
                                     {% endif %}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ candidate.city|default:"Niet opgegeven" }}
                                 </td>
                                 <td class="text-base-content/70">
                                     {{ candidate.updated_at|date:"d-m-Y H:i" }}

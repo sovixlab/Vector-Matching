@@ -12,8 +12,29 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(Candidate)
 class CandidateAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'education_level', 'years_experience', 'embed_status', 'created_at']
-    list_filter = ['embed_status', 'created_at', 'updated_at']
-    search_fields = ['name', 'email', 'education_level']
-    readonly_fields = ['created_at', 'updated_at']
+    list_display = ['name', 'email', 'city', 'education_level', 'years_experience', 'embed_status', 'processing_step', 'created_at']
+    list_filter = ['embed_status', 'processing_step', 'created_at', 'updated_at']
+    search_fields = ['name', 'email', 'education_level', 'city', 'phone']
+    readonly_fields = ['created_at', 'updated_at', 'cv_text', 'extract_json', 'profile_text', 'embedding', 'latitude', 'longitude']
     list_editable = ['embed_status']
+    fieldsets = (
+        ('Basis Informatie', {
+            'fields': ('name', 'email', 'phone')
+        }),
+        ('Adres', {
+            'fields': ('street', 'house_number', 'postal_code', 'city', 'latitude', 'longitude')
+        }),
+        ('Professioneel', {
+            'fields': ('education_level', 'job_titles', 'years_experience')
+        }),
+        ('CV & Verwerking', {
+            'fields': ('cv_pdf', 'cv_text', 'extract_json', 'profile_text', 'embedding')
+        }),
+        ('Status', {
+            'fields': ('embed_status', 'processing_step', 'error_message')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
