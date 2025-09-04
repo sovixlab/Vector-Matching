@@ -24,34 +24,8 @@ services:
         value: https://vector-matching-web.onrender.com
       - key: OPENAI_API_KEY
         sync: false  # Moet handmatig worden ingesteld
-        
-  # Celery background worker
-  - type: worker
-    name: vector-matching-worker
-    env: python
-    plan: free
-    buildCommand: |
-      pip install -r requirements.txt
-    startCommand: celery -A vector_matching worker --loglevel=info
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DEBUG
-        value: False
-      - key: DATABASE_URL
-        sync: false
-      - key: CELERY_BROKER_URL
-        sync: false
 
 databases:
   # PostgreSQL database
   - name: vector-matching-db
-    plan: free
-
-  # Redis for Celery
-  - name: vector-matching-redis
     plan: free

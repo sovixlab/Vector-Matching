@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import requests
-from celery import shared_task, chain
 from django.conf import settings
 from django.core.files.base import ContentFile
 from .models import Candidate
@@ -22,8 +21,7 @@ except ImportError:
         PDF_LIBRARY = None
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def extract_pdf_text(self, candidate_id):
+def extract_pdf_text(candidate_id):
     """Extract tekst uit PDF CV."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
@@ -67,8 +65,7 @@ def extract_pdf_text(self, candidate_id):
         raise
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def parse_cv_to_fields(self, candidate_id):
+def parse_cv_to_fields(candidate_id):
     """Parse CV tekst naar gestructureerde velden met OpenAI."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
@@ -148,8 +145,7 @@ CV tekst:
         raise
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def generate_profile_summary_text(self, candidate_id):
+def generate_profile_summary_text(candidate_id):
     """Genereer profiel samenvatting met OpenAI."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
@@ -187,8 +183,7 @@ CV tekst:
         raise
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def embed_profile_text(self, candidate_id):
+def embed_profile_text(candidate_id):
     """Embed profiel tekst met OpenAI."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
@@ -215,8 +210,7 @@ def embed_profile_text(self, candidate_id):
         raise
 
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
-def geocode_candidate(self, candidate_id):
+def geocode_candidate(candidate_id):
     """Geocode kandidaat locatie met PDOK en Nominatim."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
@@ -300,31 +294,28 @@ def geocode_candidate(self, candidate_id):
         raise
 
 
-@shared_task
 def process_candidate_pipeline(candidate_id):
     """Start de volledige verwerkingspipeline voor een kandidaat."""
     try:
-        # Chain alle tasks
-        workflow = chain(
-            extract_pdf_text.s(candidate_id),
-            parse_cv_to_fields.s(),
-            generate_profile_summary_text.s(),
-            embed_profile_text.s(),
-            geocode_candidate.s()
-        )
-        
-        result = workflow.apply_async()
         logger.info(f"Verwerkingspipeline gestart voor kandidaat {candidate_id}")
-        return result.id
+        
+        # Voer alle stappen synchroon uit
+        extract_pdf_text(candidate_id)
+        parse_cv_to_fields(candidate_id)
+        generate_profile_summary_text(candidate_id)
+        embed_profile_text(candidate_id)
+        geocode_candidate(candidate_id)
+        
+        logger.info(f"Verwerkingspipeline voltooid voor kandidaat {candidate_id}")
+        return True
         
     except Exception as e:
-        logger.error(f"Fout bij starten pipeline voor kandidaat {candidate_id}: {str(e)}")
+        logger.error(f"Fout bij verwerken pipeline voor kandidaat {candidate_id}: {str(e)}")
         candidate = Candidate.objects.get(id=candidate_id)
-        candidate.update_status('failed', 'Pipeline start', str(e))
+        candidate.update_status('failed', 'Pipeline verwerking', str(e))
         raise
 
 
-@shared_task
 def reprocess_candidate(candidate_id):
     """Herstart de verwerkingspipeline voor een kandidaat."""
     try:
@@ -334,7 +325,7 @@ def reprocess_candidate(candidate_id):
         candidate.save(update_fields=['embed_status', 'processing_step', 'error_message', 'updated_at'])
         
         # Start pipeline opnieuw
-        return process_candidate_pipeline.delay(candidate_id)
+        return process_candidate_pipeline(candidate_id)
         
     except Exception as e:
         logger.error(f"Fout bij herstarten pipeline voor kandidaat {candidate_id}: {str(e)}")

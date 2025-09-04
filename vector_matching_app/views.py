@@ -81,12 +81,12 @@ def kandidaten_upload_view(request):
                 )
                 created_candidates.append(candidate)
                 
-                # Start verwerkingspipeline
+                # Start verwerkingspipeline (synchroon)
                 try:
-                    process_candidate_pipeline.delay(candidate.id)
-                    messages.info(request, f'Verwerking gestart voor {file.name}')
+                    process_candidate_pipeline(candidate.id)
+                    messages.success(request, f'Verwerking voltooid voor {file.name}')
                 except Exception as e:
-                    messages.warning(request, f'Verwerking kon niet gestart worden voor {file.name}: {str(e)}')
+                    messages.error(request, f'Verwerking gefaald voor {file.name}: {str(e)}')
                     
             except Exception as e:
                 messages.error(request, f'Fout bij uploaden van {file.name}: {str(e)}')
@@ -116,12 +116,12 @@ def kandidaat_reprocess_view(request, candidate_id):
     try:
         candidate = Candidate.objects.get(id=candidate_id)
         
-        # Start herverwerking
+        # Start herverwerking (synchroon)
         try:
-            reprocess_candidate.delay(candidate_id)
-            messages.success(request, f'Herverwerking gestart voor {candidate.name or f"kandidaat {candidate_id}"}')
+            reprocess_candidate(candidate_id)
+            messages.success(request, f'Herverwerking voltooid voor {candidate.name or f"kandidaat {candidate_id}"}')
         except Exception as e:
-            messages.error(request, f'Fout bij starten herverwerking: {str(e)}')
+            messages.error(request, f'Fout bij herverwerking: {str(e)}')
             
     except Candidate.DoesNotExist:
         messages.error(request, 'Kandidaat niet gevonden.')
