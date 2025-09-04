@@ -25,7 +25,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false  # Moet handmatig worden ingesteld
 
+databases:
   # PostgreSQL database
-  - type: pserv
-    name: vector-matching-db
+  - name: vector-matching-db
     plan: free
