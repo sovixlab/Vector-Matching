@@ -10,4 +10,7 @@ urlpatterns = [
     path('kandidaten/upload/', views.kandidaten_upload_view, name='kandidaten_upload'),
     path('kandidaten/<int:candidate_id>/', views.kandidaat_detail_view, name='kandidaat_detail'),
     path('kandidaten/<int:candidate_id>/reprocess/', views.kandidaat_reprocess_view, name='kandidaat_reprocess'),
+    path('kandidaten/<int:candidate_id>/cv/', views.kandidaat_cv_view, name='kandidaat_cv'),
+    path('kandidaten/<int:candidate_id>/delete/', views.kandidaat_delete_view, name='kandidaat_delete'),
+    path('kandidaten/<int:candidate_id>/edit/', views.kandidaat_edit_view, name='kandidaat_edit'),
 ]

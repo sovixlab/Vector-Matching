@@ -1,5 +1,5 @@
-from django.shortcuts import render, redirect
-from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse
 from django.db import connection
 from django.conf import settings
 from django.contrib import messages
@@ -130,3 +130,86 @@ def kandidaat_reprocess_view(request, candidate_id):
         messages.error(request, 'Kandidaat niet gevonden.')
     
     return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+
+
+def kandidaat_cv_view(request, candidate_id):
+    """Serveer het CV bestand van een kandidaat."""
+    try:
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        
+        if not candidate.cv_pdf:
+            messages.error(request, 'Geen CV bestand gevonden.')
+            return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+        
+        # Serveer het bestand
+        response = HttpResponse(candidate.cv_pdf.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{candidate.cv_pdf.name}"'
+        return response
+        
+    except Exception as e:
+        messages.error(request, f'Fout bij het openen van CV: {str(e)}')
+        return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+
+
+@require_http_methods(["POST"])
+def kandidaat_delete_view(request, candidate_id):
+    """Verwijder een kandidaat."""
+    try:
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        candidate_name = candidate.name or f"kandidaat {candidate_id}"
+        
+        # Verwijder het CV bestand
+        if candidate.cv_pdf:
+            try:
+                os.remove(candidate.cv_pdf.path)
+            except (OSError, ValueError):
+                pass  # Bestand bestaat niet of kan niet worden verwijderd
+        
+        candidate.delete()
+        messages.success(request, f'{candidate_name} is verwijderd.')
+        
+    except Exception as e:
+        messages.error(request, f'Fout bij verwijderen: {str(e)}')
+    
+    return redirect('vector_matching_app:kandidaten')
+
+
+def kandidaat_edit_view(request, candidate_id):
+    """Bewerk een kandidaat."""
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    
+    if request.method == 'POST':
+        try:
+            # Update de kandidaat velden
+            candidate.name = request.POST.get('name', candidate.name)
+            candidate.email = request.POST.get('email', candidate.email)
+            candidate.phone = request.POST.get('phone', candidate.phone)
+            candidate.street = request.POST.get('street', candidate.street)
+            candidate.house_number = request.POST.get('house_number', candidate.house_number)
+            candidate.postal_code = request.POST.get('postal_code', candidate.postal_code)
+            candidate.city = request.POST.get('city', candidate.city)
+            candidate.education_level = request.POST.get('education_level', candidate.education_level)
+            
+            # Parse jaren ervaring
+            years_exp = request.POST.get('years_experience', '')
+            if years_exp.isdigit():
+                candidate.years_experience = int(years_exp)
+            else:
+                candidate.years_experience = None
+            
+            # Parse job titles (comma separated)
+            job_titles = request.POST.get('job_titles', '')
+            if job_titles:
+                candidate.job_titles = [title.strip() for title in job_titles.split(',') if title.strip()]
+            else:
+                candidate.job_titles = []
+            
+            candidate.save()
+            messages.success(request, f'{candidate.name or "Kandidaat"} is bijgewerkt.')
+            
+            return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+            
+        except Exception as e:
+            messages.error(request, f'Fout bij bijwerken: {str(e)}')
+    
+    return render(request, 'kandidaat_edit.html', {'candidate': candidate})

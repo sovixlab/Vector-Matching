@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ candidate.name|default:"Kandidaat" }} Bewerken - Vector Matching{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">
+                {{ candidate.name|default:"Kandidaat" }} Bewerken
+            </h1>
+            <p class="text-base-content/60 mt-2">
+                Bewerk de kandidaat informatie
+            </p>
+        </div>
+        <a href="{% url 'vector_matching_app:kandidaat_detail' candidate.id %}" class="btn btn-outline btn-primary">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Terug naar detail
+        </a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Edit Form -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-base-content mb-6">Kandidaat Informatie Bewerken</h2>
+            
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Naam -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Naam *</span>
+                        </label>
+                        <input type="text" name="name" value="{{ candidate.name|default:'' }}" 
+                               class="input input-bordered w-full" required>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">E-mailadres</span>
+                        </label>
+                        <input type="email" name="email" value="{{ candidate.email|default:'' }}" 
+                               class="input input-bordered w-full">
+                    </div>
+
+                    <!-- Telefoon -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Telefoonnummer</span>
+                        </label>
+                        <input type="tel" name="phone" value="{{ candidate.phone|default:'' }}" 
+                               class="input input-bordered w-full">
+                    </div>
+
+                    <!-- Opleidingsniveau -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Opleidingsniveau</span>
+                        </label>
+                        <select name="education_level" class="select select-bordered w-full">
+                            <option value="">Selecteer opleidingsniveau</option>
+                            <option value="VMBO" {% if candidate.education_level == 'VMBO' %}selected{% endif %}>VMBO</option>
+                            <option value="HAVO" {% if candidate.education_level == 'HAVO' %}selected{% endif %}>HAVO</option>
+                            <option value="VWO" {% if candidate.education_level == 'VWO' %}selected{% endif %}>VWO</option>
+                            <option value="MBO" {% if candidate.education_level == 'MBO' %}selected{% endif %}>MBO</option>
+                            <option value="HBO" {% if candidate.education_level == 'HBO' %}selected{% endif %}>HBO</option>
+                            <option value="WO" {% if candidate.education_level == 'WO' %}selected{% endif %}>WO</option>
+                        </select>
+                    </div>
+
+                    <!-- Jaren ervaring -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Jaren ervaring</span>
+                        </label>
+                        <input type="number" name="years_experience" value="{{ candidate.years_experience|default:'' }}" 
+                               class="input input-bordered w-full" min="0" max="50">
+                    </div>
+
+                    <!-- Straat -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Straat</span>
+                        </label>
+                        <input type="text" name="street" value="{{ candidate.street|default:'' }}" 
+                               class="input input-bordered w-full">
+                    </div>
+
+                    <!-- Huisnummer -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Huisnummer</span>
+                        </label>
+                        <input type="text" name="house_number" value="{{ candidate.house_number|default:'' }}" 
+                               class="input input-bordered w-full">
+                    </div>
+
+                    <!-- Postcode -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Postcode</span>
+                        </label>
+                        <input type="text" name="postal_code" value="{{ candidate.postal_code|default:'' }}" 
+                               class="input input-bordered w-full" placeholder="1234 AB">
+                    </div>
+
+                    <!-- Plaats -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Plaats</span>
+                        </label>
+                        <input type="text" name="city" value="{{ candidate.city|default:'' }}" 
+                               class="input input-bordered w-full">
+                    </div>
+                </div>
+
+                <!-- Functietitels -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text text-base-content/70">Functietitels</span>
+                        <span class="label-text-alt text-base-content/50">Gescheiden door komma's</span>
+                    </label>
+                    <input type="text" name="job_titles" value="{{ candidate.job_titles|join:', ' }}" 
+                           class="input input-bordered w-full" 
+                           placeholder="Projectmanager, Consultant, Developer">
+                </div>
+
+                <!-- Submit buttons -->
+                <div class="flex gap-4 pt-6">
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Opslaan
+                    </button>
+                    
+                    <a href="{% url 'vector_matching_app:kandidaat_detail' candidate.id %}" class="btn btn-outline">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Annuleren
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
