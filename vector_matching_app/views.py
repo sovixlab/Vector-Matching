@@ -107,6 +107,7 @@ def kandidaten_upload_view(request):
         # Verwerk bestanden één voor één, rustig aan
         created_candidates = []
         skipped_duplicates = []
+        processing_errors = []
         
         for i, file in enumerate(files):
             try:
@@ -146,14 +147,15 @@ def kandidaten_upload_view(request):
                         
                 except Exception as e:
                     logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
-                    messages.error(request, f'Verwerking gefaald voor {file.name}: {str(e)}')
+                    processing_errors.append(f'{file.name}: {str(e)}')
                     # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
                     created_candidates.append(candidate)
                     
             except Exception as e:
                 logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
-                messages.error(request, f'Fout bij uploaden van {file.name}: {str(e)}')
+                processing_errors.append(f'{file.name}: {str(e)}')
         
+        # Toon resultaten
         if created_candidates:
             success_message = f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!'
             if skipped_duplicates:
@@ -163,6 +165,19 @@ def kandidaten_upload_view(request):
             # Redirect naar de eerste kandidaat detail pagina (als die bestaat)
             if len(created_candidates) == 1:
                 return redirect('vector_matching_app:kandidaat_detail', candidate_id=created_candidates[0].id)
+        else:
+            # Geen kandidaten aangemaakt
+            if skipped_duplicates:
+                messages.warning(request, f'Alle {len(skipped_duplicates)} bestand(en) waren duplicaten en zijn overgeslagen.')
+            else:
+                messages.error(request, 'Geen bestanden konden worden verwerkt.')
+        
+        # Toon verwerkingsfouten
+        if processing_errors:
+            error_message = f'Verwerkingsfouten: {"; ".join(processing_errors[:3])}'
+            if len(processing_errors) > 3:
+                error_message += f' (en {len(processing_errors) - 3} meer)'
+            messages.error(request, error_message)
         
         return redirect('vector_matching_app:kandidaten')
 

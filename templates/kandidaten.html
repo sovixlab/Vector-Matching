@@ -7,12 +7,6 @@
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-base-content">Kandidaten</h1>
-        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Kandidaat toevoegen
-        </button>
     </div>
 
     <!-- Messages -->
@@ -46,8 +40,6 @@
                 </div>
             </div>
 
-            <!-- Hidden file input -->
-            <input type="file" id="file-input" name="files" multiple accept=".pdf" class="hidden">
             
             <!-- Upload progress -->
             <div id="upload-progress" class="hidden mt-4">
@@ -179,18 +171,17 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('file-input');
     const uploadForm = document.getElementById('upload-form');
     const uploadFiles = document.getElementById('upload-files');
     const uploadProgress = document.getElementById('upload-progress');
 
     // Click to select files
     dropzone.addEventListener('click', () => {
-        fileInput.click();
+        uploadFiles.click();
     });
 
     // File input change
-    fileInput.addEventListener('change', handleFiles);
+    uploadFiles.addEventListener('change', handleFiles);
 
     // Drag and drop
     dropzone.addEventListener('dragover', (e) => {
