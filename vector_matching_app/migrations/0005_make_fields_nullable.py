@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vector_matching_app', '0001_initial'),
+        ('vector_matching_app', '0004_candidate_extended'),
     ]
 
     operations = [
