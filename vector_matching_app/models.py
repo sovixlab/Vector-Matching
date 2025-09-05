@@ -29,15 +29,15 @@ class Candidate(models.Model):
     ]
     
     # Basis informatie
-    name = models.CharField(max_length=255, blank=True)
-    email = models.EmailField(blank=True)
-    phone = models.CharField(max_length=20, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     
     # Adres informatie
-    street = models.CharField(max_length=255, blank=True)
-    house_number = models.CharField(max_length=10, blank=True)
-    postal_code = models.CharField(max_length=10, blank=True)
-    city = models.CharField(max_length=100, blank=True)
+    street = models.CharField(max_length=255, blank=True, null=True)
+    house_number = models.CharField(max_length=10, blank=True, null=True)
+    postal_code = models.CharField(max_length=10, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
     
     # Professionele informatie
     education_level = models.CharField(max_length=100, blank=True)

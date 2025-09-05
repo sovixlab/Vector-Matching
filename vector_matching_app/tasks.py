@@ -51,8 +51,14 @@ def extract_pdf_text(candidate_id):
         if not text.strip():
             raise ValueError("Geen tekst gevonden in PDF")
         
+        # Verwijder NUL bytes en andere problematische karakters
+        cleaned_text = text.replace('\x00', '').replace('\0', '').strip()
+        
+        if not cleaned_text:
+            raise ValueError("Geen bruikbare tekst na opschoning")
+        
         # Sla tekst op
-        candidate.cv_text = text.strip()
+        candidate.cv_text = cleaned_text
         candidate.save(update_fields=['cv_text', 'updated_at'])
         
         logger.info(f"PDF tekst geëxtraheerd voor kandidaat {candidate_id}")
@@ -106,18 +112,24 @@ CV tekst:
             else:
                 raise ValueError("Geen geldige JSON gevonden in OpenAI response")
         
-        # Valideer en normaliseer data
+        # Valideer en normaliseer data met fallback waarden
+        def safe_get(data, key, default=None):
+            value = data.get(key, default)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                return default
+            return value
+        
         extracted_data = {
-            'volledige_naam': extracted_data.get('volledige_naam', ''),
-            'email': extracted_data.get('email', ''),
-            'telefoonnummer': extracted_data.get('telefoonnummer', ''),
-            'straat': extracted_data.get('straat', ''),
-            'huisnummer': extracted_data.get('huisnummer', ''),
-            'postcode': extracted_data.get('postcode', ''),
-            'woonplaats': extracted_data.get('woonplaats', ''),
-            'opleidingsniveau': extracted_data.get('opleidingsniveau', ''),
-            'functietitels': extracted_data.get('functietitels', []),
-            'jaren_ervaring': extracted_data.get('jaren_ervaring', 0)
+            'volledige_naam': safe_get(extracted_data, 'volledige_naam', 'Onbekend'),
+            'email': safe_get(extracted_data, 'email'),
+            'telefoonnummer': safe_get(extracted_data, 'telefoonnummer'),
+            'straat': safe_get(extracted_data, 'straat'),
+            'huisnummer': safe_get(extracted_data, 'huisnummer'),
+            'postcode': safe_get(extracted_data, 'postcode'),
+            'woonplaats': safe_get(extracted_data, 'woonplaats'),
+            'opleidingsniveau': safe_get(extracted_data, 'opleidingsniveau', 'Onbekend'),
+            'functietitels': safe_get(extracted_data, 'functietitels', []),
+            'jaren_ervaring': safe_get(extracted_data, 'jaren_ervaring', 0)
         }
         
         # Update candidate velden
