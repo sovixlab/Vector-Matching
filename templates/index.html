@@ -1,88 +1,165 @@
 {% extends 'base.html' %}
 
-{% block title %}Vector Matching - Home{% endblock %}
+{% block title %}Dashboard - Vector Matching{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="hero min-h-screen bg-gradient-to-br from-primary to-secondary">
-    <div class="hero-content text-center">
-        <div class="max-w-md">
-            <h1 class="text-5xl font-bold text-primary-content mb-6">
-                🔍 Vector Matching
-            </h1>
-            <p class="text-xl text-primary-content/80 mb-8">
-                Intelligente vector matching met OpenAI embeddings en PostgreSQL pgvector
-            </p>
-            <div class="flex flex-col gap-4">
-                <div class="stats shadow-lg bg-base-100">
-                    <div class="stat">
-                        <div class="stat-title">Status</div>
-                        <div class="stat-value text-success">Online</div>
-                        <div class="stat-desc">Systeem operationeel</div>
-                    </div>
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">Dashboard</h1>
+            <p class="text-base-content/70 mt-2">Overzicht van het Vector Matching systeem</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'vector_matching_app:health_check' %}" class="btn btn-outline btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Health Check
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="stat bg-base-200 rounded-lg shadow">
+            <div class="stat-figure text-primary">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Totaal Kandidaten</div>
+            <div class="stat-value text-primary">{{ total_candidates|default:"0" }}</div>
+            <div class="stat-desc">Geregistreerde kandidaten</div>
+        </div>
+
+        <div class="stat bg-base-200 rounded-lg shadow">
+            <div class="stat-figure text-success">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Verwerkt</div>
+            <div class="stat-value text-success">{{ completed_candidates|default:"0" }}</div>
+            <div class="stat-desc">CV's succesvol verwerkt</div>
+        </div>
+
+        <div class="stat bg-base-200 rounded-lg shadow">
+            <div class="stat-figure text-warning">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">In Wachtrij</div>
+            <div class="stat-value text-warning">{{ queued_candidates|default:"0" }}</div>
+            <div class="stat-desc">Wachten op verwerking</div>
+        </div>
+
+        <div class="stat bg-base-200 rounded-lg shadow">
+            <div class="stat-figure text-error">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Mislukt</div>
+            <div class="stat-value text-error">{{ failed_candidates|default:"0" }}</div>
+            <div class="stat-desc">Verwerking gefaald</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Kandidaten Beheer
+                </h2>
+                <p class="text-base-content/70 mb-4">Upload en beheer CV's van kandidaten</p>
+                <div class="card-actions">
+                    <a href="{% url 'vector_matching_app:kandidaten' %}" class="btn btn-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Bekijk Kandidaten
+                    </a>
                 </div>
-                <div class="flex gap-4 justify-center">
-                    <a href="{% url 'vector_matching_app:health_check' %}" class="btn btn-primary">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            </div>
+        </div>
+
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Systeem Status
+                </h2>
+                <p class="text-base-content/70 mb-4">Controleer de gezondheid van het systeem</p>
+                <div class="card-actions">
+                    <a href="{% url 'vector_matching_app:health_check' %}" class="btn btn-outline">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         Health Check
                     </a>
-                    <button class="btn btn-outline btn-primary" onclick="alert('Functie komt binnenkort beschikbaar!')">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Start Matching
-                    </button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Features Section -->
-<div class="py-16 bg-base-100">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-12 text-base-content">Functies</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="card bg-base-200 shadow-xl">
-                <div class="card-body text-center">
-                    <div class="text-4xl mb-4">🧠</div>
-                    <h3 class="card-title justify-center">AI Embeddings</h3>
-                    <p>OpenAI GPT embeddings voor intelligente tekstverwerking</p>
-                </div>
+    <!-- Recent Activity -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Recente Activiteit
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>Kandidaat</th>
+                            <th>Status</th>
+                            <th>Laatst Bijgewerkt</th>
+                            <th>Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for candidate in recent_candidates %}
+                        <tr>
+                            <td>
+                                <div class="font-medium">{{ candidate.name|default:"Onbekend" }}</div>
+                                <div class="text-sm text-base-content/70">{{ candidate.email|default:"Geen email" }}</div>
+                            </td>
+                            <td>
+                                <div class="badge badge-{{ candidate.embed_status_badge_class }}">
+                                    {{ candidate.embed_status_icon }} {{ candidate.get_embed_status_display }}
+                                </div>
+                            </td>
+                            <td class="text-sm text-base-content/70">
+                                {{ candidate.updated_at|date:"d-m-Y H:i" }}
+                            </td>
+                            <td>
+                                <a href="{% url 'vector_matching_app:kandidaat_detail' candidate.id %}" class="btn btn-ghost btn-xs">
+                                    Bekijk
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-base-content/70">
+                                Nog geen kandidaten toegevoegd
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            <div class="card bg-base-200 shadow-xl">
-                <div class="card-body text-center">
-                    <div class="text-4xl mb-4">🗄️</div>
-                    <h3 class="card-title justify-center">Vector Database</h3>
-                    <p>PostgreSQL met pgvector voor snelle vector matching</p>
-                </div>
-            </div>
-            <div class="card bg-base-200 shadow-xl">
-                <div class="card-body text-center">
-                    <div class="text-4xl mb-4">⚡</div>
-                    <h3 class="card-title justify-center">Snel & Schaalbaar</h3>
-                    <p>Geoptimaliseerd voor productie met Render deployment</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Tech Stack Section -->
-<div class="py-16 bg-base-200">
-    <div class="container mx-auto px-4">
-        <h2 class="text-3xl font-bold text-center mb-12 text-base-content">Tech Stack</h2>
-        <div class="flex flex-wrap justify-center gap-4">
-            <div class="badge badge-primary badge-lg">Django 4.2</div>
-            <div class="badge badge-secondary badge-lg">Python 3.12</div>
-            <div class="badge badge-accent badge-lg">PostgreSQL</div>
-            <div class="badge badge-info badge-lg">pgvector</div>
-            <div class="badge badge-success badge-lg">OpenAI API</div>
-            <div class="badge badge-warning badge-lg">TailwindCSS</div>
-            <div class="badge badge-error badge-lg">DaisyUI</div>
-            <div class="badge badge-neutral badge-lg">Render</div>
         </div>
     </div>
 </div>

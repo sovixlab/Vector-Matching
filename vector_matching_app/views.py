@@ -15,8 +15,25 @@ logger = logging.getLogger(__name__)
 
 
 def index(request):
-    """Homepage met DaisyUI hero component."""
-    return render(request, 'index.html')
+    """Dashboard met overzicht van kandidaten en systeem status."""
+    # Haal statistieken op
+    total_candidates = Candidate.objects.count()
+    completed_candidates = Candidate.objects.filter(embed_status='completed').count()
+    queued_candidates = Candidate.objects.filter(embed_status='queued').count()
+    failed_candidates = Candidate.objects.filter(embed_status='failed').count()
+    
+    # Haal recente kandidaten op (laatste 10)
+    recent_candidates = Candidate.objects.order_by('-updated_at')[:10]
+    
+    context = {
+        'total_candidates': total_candidates,
+        'completed_candidates': completed_candidates,
+        'queued_candidates': queued_candidates,
+        'failed_candidates': failed_candidates,
+        'recent_candidates': recent_candidates,
+    }
+    
+    return render(request, 'index.html', context)
 
 
 def health_check(request):

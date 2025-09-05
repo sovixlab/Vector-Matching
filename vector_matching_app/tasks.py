@@ -84,6 +84,15 @@ def parse_cv_to_fields(candidate_id):
         prompt = """Je bent een NL data-extractie-assistent. Antwoord uitsluitend met JSON met deze sleutels:
 { "volledige_naam": "...", "email": "...", "telefoonnummer": "...", "straat": "...", "huisnummer": "...", "postcode": "...", "woonplaats": "...", "opleidingsniveau": "...", "functietitels": ["..."], "jaren_ervaring": 0 }
 
+BELANGRIJK voor opleidingsniveau: Gebruik ALTIJD één van deze categorieën:
+- VMBO (voor VMBO, LBO, VBO)
+- HAVO (voor HAVO, 5-jarig HAVO)
+- VWO (voor VWO, Atheneum, Gymnasium)
+- MBO (voor MBO, ROC, niveau 2/3/4)
+- HBO (voor HBO, Hogeschool, Bachelor)
+- WO (voor WO, Universiteit, Master, PhD)
+- Overige (voor alle andere opleidingen)
+
 CV tekst:
 """ + candidate.cv_text[:4000]  # Limiteer input voor OpenAI
         
@@ -119,6 +128,41 @@ CV tekst:
                 return default
             return value
         
+        def normalize_education_level(level):
+            """Normaliseer opleidingsniveau naar standaard categorieën."""
+            if not level or not isinstance(level, str):
+                return 'Overige'
+            
+            level_lower = level.lower().strip()
+            
+            # VMBO categorieën
+            if any(x in level_lower for x in ['vmbo', 'lbo', 'vbo', 'mavo']):
+                return 'VMBO'
+            
+            # HAVO categorieën
+            elif any(x in level_lower for x in ['havo', '5-jarig']):
+                return 'HAVO'
+            
+            # VWO categorieën
+            elif any(x in level_lower for x in ['vwo', 'atheneum', 'gymnasium']):
+                return 'VWO'
+            
+            # MBO categorieën
+            elif any(x in level_lower for x in ['mbo', 'roc', 'niveau 2', 'niveau 3', 'niveau 4']):
+                return 'MBO'
+            
+            # HBO categorieën
+            elif any(x in level_lower for x in ['hbo', 'hogeschool', 'bachelor', 'bsc', 'ba']):
+                return 'HBO'
+            
+            # WO categorieën
+            elif any(x in level_lower for x in ['wo', 'universiteit', 'master', 'msc', 'ma', 'phd', 'doctoraat']):
+                return 'WO'
+            
+            # Overige
+            else:
+                return 'Overige'
+        
         extracted_data = {
             'volledige_naam': safe_get(extracted_data, 'volledige_naam', 'Onbekend'),
             'email': safe_get(extracted_data, 'email'),
@@ -127,7 +171,7 @@ CV tekst:
             'huisnummer': safe_get(extracted_data, 'huisnummer'),
             'postcode': safe_get(extracted_data, 'postcode'),
             'woonplaats': safe_get(extracted_data, 'woonplaats'),
-            'opleidingsniveau': safe_get(extracted_data, 'opleidingsniveau', 'Onbekend'),
+            'opleidingsniveau': normalize_education_level(safe_get(extracted_data, 'opleidingsniveau')),
             'functietitels': safe_get(extracted_data, 'functietitels', []),
             'jaren_ervaring': safe_get(extracted_data, 'jaren_ervaring', 0)
         }
