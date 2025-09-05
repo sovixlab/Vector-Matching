@@ -9,6 +9,9 @@ from .models import Candidate
 from .tasks import process_candidate_pipeline, reprocess_candidate
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
