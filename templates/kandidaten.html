@@ -163,9 +163,9 @@
 </div>
 
 <!-- Upload Form (hidden) -->
-<form id="upload-form" action="{% url 'vector_matching_app:kandidaten_upload' %}" method="post" enctype="multipart/form-data" class="hidden">
+<form id="upload-form" action="{% url 'vector_matching_app:kandidaten_upload' %}" method="post" enctype="multipart/form-data" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden;">
     {% csrf_token %}
-    <input type="file" id="upload-files" name="files" multiple accept=".pdf">
+    <input type="file" id="upload-files" name="files" multiple accept=".pdf" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden;">
 </form>
 
 <script>
