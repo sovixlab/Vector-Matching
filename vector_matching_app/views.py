@@ -95,21 +95,33 @@ def kandidaten_upload_view(request):
         
         # Verwerk bestanden één voor één, rustig aan
         created_candidates = []
+        skipped_duplicates = []
+        
         for i, file in enumerate(files):
             try:
-                # Maak kandidaat aan
+                # Maak kandidaat aan met fallback waarden
                 candidate = Candidate.objects.create(
-                    name=os.path.splitext(file.name)[0],  # Bestandsnaam zonder extensie
+                    name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
+                    email='',  # Lege string in plaats van null
                     cv_pdf=file,
                     embed_status='queued'
                 )
-                created_candidates.append(candidate)
                 
                 # Verwerk één voor één met korte pauze
                 try:
                     logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
                     process_candidate_pipeline(candidate.id)
-                    logger.info(f"Verwerking voltooid voor {file.name}")
+                    
+                    # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
+                    candidate.refresh_from_db()
+                    if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
+                        # Verwijder de kandidaat als het een duplicaat was
+                        candidate.delete()
+                        skipped_duplicates.append(file.name)
+                        logger.info(f"Duplicaat overgeslagen: {file.name}")
+                    else:
+                        created_candidates.append(candidate)
+                        logger.info(f"Verwerking voltooid voor {file.name}")
                     
                     # Korte pauze tussen bestanden (behalve de laatste)
                     if i < len(files) - 1:
@@ -119,13 +131,19 @@ def kandidaten_upload_view(request):
                 except Exception as e:
                     logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
                     messages.error(request, f'Verwerking gefaald voor {file.name}: {str(e)}')
+                    # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
+                    created_candidates.append(candidate)
                     
             except Exception as e:
                 logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
                 messages.error(request, f'Fout bij uploaden van {file.name}: {str(e)}')
         
         if created_candidates:
-            messages.success(request, f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!')
+            success_message = f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!'
+            if skipped_duplicates:
+                success_message += f' {len(skipped_duplicates)} duplicaat(en) overgeslagen.'
+            messages.success(request, success_message)
+            
             # Redirect naar de eerste kandidaat detail pagina (als die bestaat)
             if len(created_candidates) == 1:
                 return redirect('vector_matching_app:kandidaat_detail', candidate_id=created_candidates[0].id)

@@ -176,9 +176,21 @@ CV tekst:
             'jaren_ervaring': safe_get(extracted_data, 'jaren_ervaring', 0)
         }
         
+        # Controleer duplicaten op basis van e-mailadres (alleen als e-mail niet leeg is)
+        email = extracted_data['email']
+        if email and email.strip():
+            # Check of er al een kandidaat bestaat met dit e-mailadres
+            existing_candidate = Candidate.objects.filter(email=email).exclude(id=candidate_id).first()
+            if existing_candidate:
+                logger.warning(f"Duplicaat gevonden voor e-mail {email}. Kandidaat {candidate_id} wordt gemarkeerd als duplicaat.")
+                candidate.embed_status = 'failed'
+                candidate.error_message = f"Duplicaat: E-mailadres {email} bestaat al bij kandidaat {existing_candidate.id}"
+                candidate.save(update_fields=['embed_status', 'error_message', 'updated_at'])
+                return candidate_id
+        
         # Update candidate velden
         candidate.name = extracted_data['volledige_naam']
-        candidate.email = extracted_data['email']
+        candidate.email = email  # Kan leeg zijn
         candidate.phone = extracted_data['telefoonnummer']
         candidate.street = extracted_data['straat']
         candidate.house_number = extracted_data['huisnummer']
