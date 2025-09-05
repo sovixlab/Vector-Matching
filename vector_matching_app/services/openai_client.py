@@ -15,11 +15,8 @@ class OpenAIClient:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is niet geconfigureerd")
         
-        # Maak client aan zonder extra parameters
-        self.client = openai.OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            timeout=30.0
-        )
+        # Maak client aan met minimale parameters
+        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
     
     def embed(self, text: str, model: str = "text-embedding-3-small") -> list[float]:
         """
@@ -79,6 +76,6 @@ _openai_client = None
 def get_openai_client() -> OpenAIClient:
     """Haalt de singleton OpenAI client op."""
     global _openai_client
-    if _openai_client is None:
-        _openai_client = OpenAIClient()
+    # Reset client bij elke call om oude instanties te vermijden
+    _openai_client = OpenAIClient()
     return _openai_client
