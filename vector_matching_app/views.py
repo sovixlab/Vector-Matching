@@ -213,3 +213,43 @@ def kandidaat_edit_view(request, candidate_id):
             messages.error(request, f'Fout bij bijwerken: {str(e)}')
     
     return render(request, 'kandidaat_edit.html', {'candidate': candidate})
+
+
+@require_http_methods(["POST"])
+def kandidaten_bulk_delete_view(request):
+    """Verwijder meerdere kandidaten tegelijk."""
+    try:
+        candidate_ids = request.POST.getlist('candidate_ids')
+        
+        if not candidate_ids:
+            messages.warning(request, 'Geen kandidaten geselecteerd.')
+            return redirect('vector_matching_app:kandidaten')
+        
+        # Verwijder de geselecteerde kandidaten
+        deleted_count = 0
+        for candidate_id in candidate_ids:
+            try:
+                candidate = Candidate.objects.get(id=candidate_id)
+                
+                # Verwijder het CV bestand
+                if candidate.cv_pdf:
+                    try:
+                        os.remove(candidate.cv_pdf.path)
+                    except (OSError, ValueError):
+                        pass  # Bestand bestaat niet of kan niet worden verwijderd
+                
+                candidate.delete()
+                deleted_count += 1
+                
+            except Candidate.DoesNotExist:
+                continue  # Kandidaat bestaat niet meer
+        
+        if deleted_count > 0:
+            messages.success(request, f'{deleted_count} kandidaat(en) succesvol verwijderd.')
+        else:
+            messages.warning(request, 'Geen kandidaten konden worden verwijderd.')
+            
+    except Exception as e:
+        messages.error(request, f'Fout bij bulk verwijderen: {str(e)}')
+    
+    return redirect('vector_matching_app:kandidaten')

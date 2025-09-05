@@ -62,26 +62,51 @@
     <!-- Kandidaten Tabel -->
     <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title text-base-content mb-4">Kandidaten Overzicht</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="card-title text-base-content">Kandidaten Overzicht</h2>
+                <div class="flex gap-2">
+                    <button id="select-all-btn" class="btn btn-sm btn-outline">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Alles selecteren
+                    </button>
+                    <button id="bulk-delete-btn" class="btn btn-sm btn-error" disabled>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span id="selected-count">0</span> verwijderen
+                    </button>
+                </div>
+            </div>
             
             {% if candidates %}
-                <div class="overflow-x-auto">
-                    <table class="table table-zebra w-full">
-                        <thead>
-                            <tr>
-                                <th class="text-base-content">Naam</th>
-                                <th class="text-base-content">E-mailadres</th>
-                                <th class="text-base-content">Opleidingsniveau</th>
-                                <th class="text-base-content">Jaren ervaring</th>
-                                <th class="text-base-content">Locatie</th>
-                                <th class="text-base-content">Laatst bijgewerkt</th>
-                                <th class="text-base-content">Status</th>
-                                <th class="text-base-content">Acties</th>
-                            </tr>
-                        </thead>
+                <form id="bulk-delete-form" method="post" action="{% url 'vector_matching_app:kandidaten_bulk_delete' %}">
+                    {% csrf_token %}
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-base-content">
+                                        <input type="checkbox" id="select-all-checkbox" class="checkbox checkbox-sm">
+                                    </th>
+                                    <th class="text-base-content">Naam</th>
+                                    <th class="text-base-content">E-mailadres</th>
+                                    <th class="text-base-content">Opleidingsniveau</th>
+                                    <th class="text-base-content">Jaren ervaring</th>
+                                    <th class="text-base-content">Locatie</th>
+                                    <th class="text-base-content">Laatst bijgewerkt</th>
+                                    <th class="text-base-content">Status</th>
+                                    <th class="text-base-content">Acties</th>
+                                </tr>
+                            </thead>
                         <tbody>
                             {% for candidate in candidates %}
                             <tr>
+                                <td>
+                                    <input type="checkbox" name="candidate_ids" value="{{ candidate.id }}" 
+                                           class="candidate-checkbox checkbox checkbox-sm">
+                                </td>
                                 <td class="text-base-content">
                                     <div class="font-medium">{{ candidate.name|default:"Niet opgegeven" }}</div>
                                 </td>
@@ -218,6 +243,64 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFiles(e) {
         const files = e.target.files;
         handleFileList(files);
+    }
+
+    // Bulk delete functionality
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const candidateCheckboxes = document.querySelectorAll('.candidate-checkbox');
+    const bulkDeleteForm = document.getElementById('bulk-delete-form');
+
+    // Select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        candidateCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkDeleteButton();
+    });
+
+    // Individual checkboxes
+    candidateCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkDeleteButton);
+    });
+
+    // Select all button
+    selectAllBtn.addEventListener('click', function() {
+        const allChecked = Array.from(candidateCheckboxes).every(cb => cb.checked);
+        candidateCheckboxes.forEach(checkbox => {
+            checkbox.checked = !allChecked;
+        });
+        selectAllCheckbox.checked = !allChecked;
+        updateBulkDeleteButton();
+    });
+
+    // Bulk delete button
+    bulkDeleteBtn.addEventListener('click', function() {
+        const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
+        if (selectedCount > 0) {
+            if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt verwijderen?`)) {
+                bulkDeleteForm.submit();
+            }
+        }
+    });
+
+    function updateBulkDeleteButton() {
+        const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
+        selectedCountSpan.textContent = selectedCount;
+        bulkDeleteBtn.disabled = selectedCount === 0;
+        
+        // Update select all checkbox state
+        if (selectedCount === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (selectedCount === candidateCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
     }
 
     function handleFileList(files) {
