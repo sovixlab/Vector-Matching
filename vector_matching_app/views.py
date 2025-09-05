@@ -3,6 +3,9 @@ from django.http import JsonResponse, HttpResponse
 from django.db import connection
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import Candidate, Prompt, PromptLog
@@ -14,6 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@login_required
 def index(request):
     """Dashboard met overzicht van kandidaten en systeem status."""
     # Haal statistieken op
@@ -36,6 +40,7 @@ def index(request):
     return render(request, 'index.html', context)
 
 
+# Health check heeft geen login vereist voor monitoring
 def health_check(request):
     """Health check endpoint dat JSON status teruggeeft."""
     try:
@@ -62,6 +67,7 @@ def health_check(request):
     return JsonResponse(response_data)
 
 
+@login_required
 def kandidaten_list_view(request):
     """Weergave van alle kandidaten in een tabel."""
     candidates = Candidate.objects.all()
@@ -72,6 +78,7 @@ def kandidaten_list_view(request):
     })
 
 
+@login_required
 @require_http_methods(["POST"])
 def kandidaten_upload_view(request):
     """Verwerkt CV uploads voor kandidaten."""
@@ -160,6 +167,7 @@ def kandidaten_upload_view(request):
         return redirect('vector_matching_app:kandidaten')
 
 
+@login_required
 def kandidaat_detail_view(request, candidate_id):
     """Detail weergave van een kandidaat."""
     try:
@@ -171,6 +179,7 @@ def kandidaat_detail_view(request, candidate_id):
 
 
 @require_http_methods(["POST"])
+@login_required
 def kandidaat_reprocess_view(request, candidate_id):
     """Herstart de verwerkingspipeline voor een kandidaat."""
     try:
@@ -189,6 +198,7 @@ def kandidaat_reprocess_view(request, candidate_id):
     return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
 
 
+@login_required
 def kandidaat_cv_view(request, candidate_id):
     """Serveer het CV bestand van een kandidaat."""
     try:
@@ -216,6 +226,7 @@ def kandidaat_cv_view(request, candidate_id):
 
 
 @require_http_methods(["POST"])
+@login_required
 def kandidaat_delete_view(request, candidate_id):
     """Verwijder een kandidaat."""
     try:
@@ -238,6 +249,7 @@ def kandidaat_delete_view(request, candidate_id):
     return redirect('vector_matching_app:kandidaten')
 
 
+@login_required
 def kandidaat_edit_view(request, candidate_id):
     """Bewerk een kandidaat."""
     candidate = get_object_or_404(Candidate, id=candidate_id)
@@ -280,6 +292,7 @@ def kandidaat_edit_view(request, candidate_id):
 
 
 @require_http_methods(["POST"])
+@login_required
 def kandidaten_bulk_delete_view(request):
     """Verwijder meerdere kandidaten tegelijk."""
     try:
@@ -320,6 +333,7 @@ def kandidaten_bulk_delete_view(request):
 
 
 # Prompt Management Views
+@login_required
 def prompts_list_view(request):
     """Overzicht van alle prompts."""
     # Zorg ervoor dat de standaard prompts bestaan
@@ -366,6 +380,7 @@ CV tekst:
         )
 
 
+@login_required
 def prompt_detail_view(request, prompt_id):
     """Detail weergave van een prompt met versiegeschiedenis."""
     prompt = get_object_or_404(Prompt, id=prompt_id)
@@ -380,6 +395,7 @@ def prompt_detail_view(request, prompt_id):
     return render(request, 'prompt_detail.html', context)
 
 
+@login_required
 def prompt_edit_view(request, prompt_id):
     """Bewerk een prompt."""
     prompt = get_object_or_404(Prompt, id=prompt_id)
@@ -411,6 +427,7 @@ def prompt_edit_view(request, prompt_id):
     return render(request, 'prompt_edit.html', {'prompt': prompt})
 
 
+@login_required
 def prompt_create_view(request):
     """Maak een nieuwe prompt aan."""
     if request.method == 'POST':
@@ -445,6 +462,7 @@ def prompt_create_view(request):
     return render(request, 'prompt_create.html')
 
 
+@login_required
 def prompt_activate_view(request, prompt_id):
     """Activeer een specifieke versie van een prompt."""
     prompt = get_object_or_404(Prompt, id=prompt_id)
@@ -470,9 +488,42 @@ def prompt_activate_view(request, prompt_id):
     return redirect('vector_matching_app:prompt_detail', prompt_id=prompt.id)
 
 
+@login_required
 def prompt_logs_view(request):
     """Overzicht van alle prompt logs."""
     logs = PromptLog.objects.all().order_by('-timestamp')[:100]
     return render(request, 'prompt_logs.html', {'logs': logs})
+
+
+# Authentication Views
+def login_view(request):
+    """Login pagina."""
+    if request.user.is_authenticated:
+        return redirect('vector_matching_app:index')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        
+        if username and password:
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, f'Welkom terug, {user.username}!')
+                next_url = request.GET.get('next', 'vector_matching_app:index')
+                return redirect(next_url)
+            else:
+                messages.error(request, 'Ongeldige gebruikersnaam of wachtwoord.')
+        else:
+            messages.error(request, 'Vul beide velden in.')
+    
+    return render(request, 'login.html')
+
+
+def logout_view(request):
+    """Logout functionaliteit."""
+    logout(request)
+    messages.info(request, 'Je bent succesvol uitgelogd.')
+    return redirect('vector_matching_app:login')
 
 

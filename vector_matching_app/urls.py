@@ -22,4 +22,8 @@ urlpatterns = [
     path('prompts/<int:prompt_id>/edit/', views.prompt_edit_view, name='prompt_edit'),
     path('prompts/<int:prompt_id>/activate/', views.prompt_activate_view, name='prompt_activate'),
     path('prompts/logs/', views.prompt_logs_view, name='prompt_logs'),
+    
+    # Authentication URLs
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
 ]

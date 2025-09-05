@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="night">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inloggen - Vector Matching</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.24/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% load static %}{% static 'css/tailwind.css' %}">
+</head>
+<body class="bg-base-200 min-h-screen flex items-center justify-center">
+    <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+            <!-- Logo/Header -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-primary-content" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-base-content">Vector Matching</h1>
+                <p class="text-base-content/70 mt-2">Inloggen om toegang te krijgen</p>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+                <div class="mb-6">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} mb-2">
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Login Form -->
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Gebruikersnaam</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        class="input input-bordered w-full" 
+                        placeholder="Voer je gebruikersnaam in"
+                        required
+                        autofocus
+                    >
+                </div>
+                
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Wachtwoord</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="input input-bordered w-full" 
+                        placeholder="Voer je wachtwoord in"
+                        required
+                    >
+                </div>
+                
+                <div class="form-control mt-6">
+                    <button type="submit" class="btn btn-primary w-full">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        Inloggen
+                    </button>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="text-center mt-8 text-sm text-base-content/60">
+                <p>Vector Matching Systeem</p>
+                <p class="mt-1">Beveiligd met gebruikersauthenticatie</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/10 rounded-full blur-3xl"></div>
+    </div>
+</body>
+</html>

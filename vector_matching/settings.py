@@ -122,6 +122,11 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Authentication
+LOGIN_URL = 'vector_matching_app:login'
+LOGIN_REDIRECT_URL = 'vector_matching_app:index'
+LOGOUT_REDIRECT_URL = 'vector_matching_app:login'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
