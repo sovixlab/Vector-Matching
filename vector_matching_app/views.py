@@ -65,7 +65,11 @@ def health_check(request):
 def kandidaten_list_view(request):
     """Weergave van alle kandidaten in een tabel."""
     candidates = Candidate.objects.all()
-    return render(request, 'kandidaten.html', {'candidates': candidates})
+    total_count = candidates.count()
+    return render(request, 'kandidaten.html', {
+        'candidates': candidates,
+        'total_count': total_count
+    })
 
 
 @require_http_methods(["POST"])
