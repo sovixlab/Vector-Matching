@@ -160,7 +160,7 @@
                     <div class="prose prose-invert max-w-none">
                         <p class="text-base-content">{{ candidate.profile_text }}</p>
                     </div>
-                    {% if candidate.embedding %}
+                    {% if candidate.embedding and candidate.embedding|length > 0 %}
                     <div class="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg">
                         <div class="flex items-center gap-2">
                             <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
