@@ -318,8 +318,48 @@ def kandidaten_bulk_delete_view(request):
 # Prompt Management Views
 def prompts_list_view(request):
     """Overzicht van alle prompts."""
+    # Zorg ervoor dat de standaard prompts bestaan
+    _ensure_default_prompts()
+    
     prompts = Prompt.objects.all().order_by('name', '-version')
     return render(request, 'prompts.html', {'prompts': prompts})
+
+
+def _ensure_default_prompts():
+    """Zorg ervoor dat de standaard prompts bestaan."""
+    # Kandidaten Samenvatting Prompt
+    if not Prompt.objects.filter(prompt_type='profile_summary').exists():
+        Prompt.objects.create(
+            name='Kandidaten Samenvatting',
+            prompt_type='profile_summary',
+            content="""Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de kandidaat samenvat voor matching. Benoem opleiding, jaren ervaring, functietitels, domeinen, vaardigheden, talen, beschikbaarheid. Gebruik alleen info uit de CV.
+
+CV tekst:
+""",
+            is_active=True
+        )
+    
+    # CV Parsing Prompt
+    if not Prompt.objects.filter(prompt_type='cv_parsing').exists():
+        Prompt.objects.create(
+            name='CV Parsing',
+            prompt_type='cv_parsing',
+            content="""Je bent een NL data-extractie-assistent. Antwoord uitsluitend met JSON met deze sleutels:
+{ "volledige_naam": "...", "email": "...", "telefoonnummer": "...", "straat": "...", "huisnummer": "...", "postcode": "...", "woonplaats": "...", "opleidingsniveau": "...", "functietitels": ["..."], "jaren_ervaring": 0 }
+
+BELANGRIJK voor opleidingsniveau: Gebruik ALTIJD één van deze categorieën:
+- VMBO (voor VMBO, LBO, VBO)
+- HAVO (voor HAVO, 5-jarig HAVO)
+- VWO (voor VWO, Atheneum, Gymnasium)
+- MBO (voor MBO, ROC, niveau 2/3/4)
+- HBO (voor HBO, Hogeschool, Bachelor)
+- WO (voor WO, Universiteit, Master, PhD)
+- Overige (voor alle andere opleidingen)
+
+CV tekst:
+""",
+            is_active=True
+        )
 
 
 def prompt_detail_view(request, prompt_id):
@@ -430,3 +470,5 @@ def prompt_logs_view(request):
     """Overzicht van alle prompt logs."""
     logs = PromptLog.objects.all().order_by('-timestamp')[:100]
     return render(request, 'prompt_logs.html', {'logs': logs})
+
+

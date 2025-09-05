@@ -226,8 +226,16 @@ def generate_profile_summary_text(candidate_id):
         if not candidate.cv_text:
             raise ValueError("Geen CV tekst gevonden")
         
-        # OpenAI prompt
-        prompt = """Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de kandidaat samenvat voor matching. Benoem opleiding, jaren ervaring, functietitels, domeinen, vaardigheden, talen, beschikbaarheid. Gebruik alleen info uit de CV.
+        # Haal de actieve samenvatting prompt op uit de database
+        from .models import Prompt
+        prompt_obj = Prompt.objects.filter(prompt_type='profile_summary', is_active=True).first()
+        
+        if prompt_obj:
+            # Gebruik de prompt uit de database
+            prompt = prompt_obj.content + candidate.cv_text[:4000]  # Limiteer input voor OpenAI
+        else:
+            # Fallback naar hardcoded prompt
+            prompt = """Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de kandidaat samenvat voor matching. Benoem opleiding, jaren ervaring, functietitels, domeinen, vaardigheden, talen, beschikbaarheid. Gebruik alleen info uit de CV.
 
 CV tekst:
 """ + candidate.cv_text[:4000]  # Limiteer input voor OpenAI

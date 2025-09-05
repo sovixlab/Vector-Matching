@@ -8,7 +8,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-4xl font-bold text-base-content">Prompt Beheer</h1>
-            <p class="text-base-content/70 mt-2">Beheer embedding prompts met versiegeschiedenis</p>
+            <p class="text-base-content/70 mt-2">Beheer AI prompts voor kandidaten verwerking met versiegeschiedenis</p>
         </div>
         <div class="flex gap-4">
             <a href="{% url 'vector_matching_app:prompt_create' %}" class="btn btn-primary">
@@ -61,6 +61,11 @@
                                 <td>
                                     <div class="font-medium">{{ prompt.name }}</div>
                                     <div class="text-sm text-base-content/70">{{ prompt.content|truncatechars:100 }}</div>
+                                    {% if prompt.prompt_type == 'profile_summary' %}
+                                        <div class="text-xs text-primary mt-1">📝 Gebruikt voor kandidaten samenvattingen</div>
+                                    {% elif prompt.prompt_type == 'cv_parsing' %}
+                                        <div class="text-xs text-primary mt-1">🔍 Gebruikt voor CV data extractie</div>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <div class="badge badge-outline">{{ prompt.get_prompt_type_display }}</div>
