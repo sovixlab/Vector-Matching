@@ -73,7 +73,7 @@ def kandidaten_upload_view(request):
             messages.error(request, f'Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: {", ".join(invalid_files)}')
             return redirect('vector_matching_app:kandidaten')
         
-        # Verwerk bestanden
+        # Verwerk bestanden (zonder directe verwerking)
         created_candidates = []
         for file in files:
             try:
@@ -83,22 +83,47 @@ def kandidaten_upload_view(request):
                     embed_status='queued'
                 )
                 created_candidates.append(candidate)
-                
-                # Start verwerkingspipeline (synchroon)
-                try:
-                    process_candidate_pipeline(candidate.id)
-                    messages.success(request, f'Verwerking voltooid voor {file.name}')
-                except Exception as e:
-                    messages.error(request, f'Verwerking gefaald voor {file.name}: {str(e)}')
                     
             except Exception as e:
                 messages.error(request, f'Fout bij uploaden van {file.name}: {str(e)}')
         
         if created_candidates:
-            messages.success(request, f'{len(created_candidates)} CV(s) succesvol geüpload!')
-            # Redirect naar de eerste kandidaat detail pagina (als die bestaat)
-            if len(created_candidates) == 1:
-                return redirect('vector_matching_app:kandidaat_detail', candidate_id=created_candidates[0].id)
+            # Start verwerking asynchroon voor maximaal 3 kandidaten tegelijk
+            import threading
+            import time
+            
+            def process_candidate_async(candidate_id, file_name):
+                try:
+                    time.sleep(1)  # Korte delay om worker timeout te voorkomen
+                    process_candidate_pipeline(candidate_id)
+                    logger.info(f"Verwerking voltooid voor {file_name}")
+                except Exception as e:
+                    logger.error(f"Verwerking gefaald voor {file_name}: {str(e)}")
+                    try:
+                        candidate = Candidate.objects.get(id=candidate_id)
+                        candidate.embed_status = 'failed'
+                        candidate.error_message = f"Verwerkingsfout: {str(e)}"
+                        candidate.save()
+                    except:
+                        pass
+            
+            # Start verwerking in batches van 3
+            batch_size = 3
+            for i in range(0, len(created_candidates), batch_size):
+                batch = created_candidates[i:i + batch_size]
+                for j, candidate in enumerate(batch):
+                    delay = j * 2  # 2 seconden delay tussen elke kandidaat in een batch
+                    thread = threading.Thread(
+                        target=process_candidate_async, 
+                        args=(candidate.id, candidate.name),
+                        daemon=True
+                    )
+                    thread.start()
+                    if delay > 0:
+                        time.sleep(delay)
+            
+            messages.success(request, f'{len(created_candidates)} CV(s) geüpload! Verwerking gestart in de achtergrond.')
+            return redirect('vector_matching_app:kandidaten')
         
         return redirect('vector_matching_app:kandidaten')
 
