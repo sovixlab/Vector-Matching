@@ -107,12 +107,12 @@ def kandidaten_upload_view(request):
                     except:
                         pass
             
-            # Start verwerking in batches van 3
-            batch_size = 3
+            # Start verwerking in batches van 2 (vereenvoudigd voor Render)
+            batch_size = 2
             for i in range(0, len(created_candidates), batch_size):
                 batch = created_candidates[i:i + batch_size]
                 for j, candidate in enumerate(batch):
-                    delay = j * 2  # 2 seconden delay tussen elke kandidaat in een batch
+                    delay = j * 3  # 3 seconden delay tussen elke kandidaat
                     thread = threading.Thread(
                         target=process_candidate_async, 
                         args=(candidate.id, candidate.name),

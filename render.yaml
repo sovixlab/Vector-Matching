@@ -10,7 +10,7 @@ services:
       npm run build-css
       python manage.py collectstatic --noinput
       python manage.py migrate
-    startCommand: gunicorn -c gunicorn.conf.py vector_matching.wsgi:application
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 120 vector_matching.wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
