@@ -138,17 +138,24 @@ def kandidaat_cv_view(request, candidate_id):
         candidate = get_object_or_404(Candidate, id=candidate_id)
         
         if not candidate.cv_pdf:
-            messages.error(request, 'Geen CV bestand gevonden.')
-            return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+            return HttpResponse('Geen CV bestand gevonden.', status=404)
+        
+        # Controleer of het bestand bestaat
+        if not candidate.cv_pdf.storage.exists(candidate.cv_pdf.name):
+            return HttpResponse('CV bestand niet gevonden op server.', status=404)
         
         # Serveer het bestand
-        response = HttpResponse(candidate.cv_pdf.read(), content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="{candidate.cv_pdf.name}"'
-        return response
+        try:
+            file_content = candidate.cv_pdf.read()
+            response = HttpResponse(file_content, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="{candidate.cv_pdf.name.split("/")[-1]}"'
+            response['Content-Length'] = len(file_content)
+            return response
+        except Exception as e:
+            return HttpResponse(f'Fout bij lezen van CV bestand: {str(e)}', status=500)
         
     except Exception as e:
-        messages.error(request, f'Fout bij het openen van CV: {str(e)}')
-        return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
+        return HttpResponse(f'Fout bij het openen van CV: {str(e)}', status=500)
 
 
 @require_http_methods(["POST"])
