@@ -103,6 +103,11 @@ def kandidaten_upload_view(request):
                 candidate = Candidate.objects.create(
                     name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
                     email='',  # Lege string in plaats van null
+                    phone='',  # Lege string in plaats van null
+                    street='',  # Lege string in plaats van null
+                    house_number='',  # Lege string in plaats van null
+                    postal_code='',  # Lege string in plaats van null
+                    city='',  # Lege string in plaats van null
                     cv_pdf=file,
                     embed_status='queued'
                 )
