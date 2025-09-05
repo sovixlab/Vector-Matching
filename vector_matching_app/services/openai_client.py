@@ -15,7 +15,7 @@ class OpenAIClient:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is niet geconfigureerd")
         
-        # Maak client aan met expliciete parameters om proxies fout te vermijden
+        # Maak client aan met expliciete parameters
         try:
             # Reset openai module om oude configuraties te vermijden
             import importlib
