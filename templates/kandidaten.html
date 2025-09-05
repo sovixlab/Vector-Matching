@@ -43,9 +43,14 @@
             
             <!-- Upload progress -->
             <div id="upload-progress" class="hidden mt-4">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 mb-4">
                     <span class="loading loading-spinner loading-sm"></span>
                     <span class="text-sm text-base-content/60">Uploaden...</span>
+                </div>
+                
+                <!-- Live feed voor individuele bestanden -->
+                <div id="file-progress-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <!-- Bestanden worden hier dynamisch toegevoegd -->
                 </div>
             </div>
         </div>
@@ -287,11 +292,113 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Toon live feed
+        showLiveFeed(files);
+
         // Upload bestanden
         uploadFiles.files = files;
         uploadProgress.classList.remove('hidden');
         
+        // Simuleer progress voor demo (in echte implementatie zou dit via AJAX gaan)
+        simulateProgress(files.length);
+        
         uploadForm.submit();
+    }
+    
+    function showLiveFeed(files) {
+        const fileProgressList = document.getElementById('file-progress-list');
+        fileProgressList.innerHTML = '';
+        
+        // Voeg elk bestand toe aan de live feed
+        files.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'flex items-center justify-between p-3 bg-base-100 rounded-lg border';
+            fileItem.id = `file-${index}`;
+            
+            fileItem.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="loading loading-spinner loading-sm text-primary"></span>
+                    <span class="text-sm font-medium text-base-content">${file.name}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-base-content/60">Verwerken...</span>
+                </div>
+            `;
+            
+            fileProgressList.appendChild(fileItem);
+        });
+    }
+    
+    function updateFileStatus(fileIndex, status, message = '') {
+        const fileItem = document.getElementById(`file-${fileIndex}`);
+        if (!fileItem) return;
+        
+        const statusElement = fileItem.querySelector('.flex.items-center.gap-2');
+        const spinner = fileItem.querySelector('.loading-spinner');
+        
+        // Verwijder spinner
+        if (spinner) {
+            spinner.remove();
+        }
+        
+        // Update status
+        if (status === 'success') {
+            statusElement.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="text-xs text-success">Voltooid</span>
+                </div>
+            `;
+        } else if (status === 'error') {
+            statusElement.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    <span class="text-xs text-error">Fout</span>
+                </div>
+            `;
+        } else if (status === 'duplicate') {
+            statusElement.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <span class="text-xs text-warning">Duplicaat</span>
+                </div>
+            `;
+        }
+    }
+    
+    function simulateProgress(fileCount) {
+        // Simuleer progress voor demo doeleinden
+        let completed = 0;
+        const total = fileCount;
+        
+        const progressInterval = setInterval(() => {
+            if (completed < total) {
+                // Simuleer willekeurige volgorde van voltooiing
+                const randomIndex = Math.floor(Math.random() * total);
+                const fileItem = document.getElementById(`file-${randomIndex}`);
+                
+                if (fileItem && fileItem.querySelector('.loading-spinner')) {
+                    // 70% kans op succes, 20% op duplicaat, 10% op fout
+                    const random = Math.random();
+                    if (random < 0.7) {
+                        updateFileStatus(randomIndex, 'success');
+                    } else if (random < 0.9) {
+                        updateFileStatus(randomIndex, 'duplicate');
+                    } else {
+                        updateFileStatus(randomIndex, 'error');
+                    }
+                    completed++;
+                }
+            } else {
+                clearInterval(progressInterval);
+            }
+        }, 2000 + Math.random() * 3000); // 2-5 seconden tussen updates
     }
 });
 </script>
