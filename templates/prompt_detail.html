@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ prompt.name }} - Prompt Detail{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">{{ prompt.name }}</h1>
+            <p class="text-base-content/70 mt-2">Versie {{ prompt.version }} - {{ prompt.get_prompt_type_display }}</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'vector_matching_app:prompt_edit' prompt.id %}" class="btn btn-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Bewerk
+            </a>
+            {% if not prompt.is_active %}
+            <form method="post" action="{% url 'vector_matching_app:prompt_activate' prompt.id %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Activeer
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'vector_matching_app:prompts' %}" class="btn btn-outline">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Terug
+            </a>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Prompt Content -->
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Prompt Inhoud
+                </h2>
+                
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="badge badge-{{ prompt.is_active|yesno:'success,ghost' }}">
+                        {% if prompt.is_active %}Actief{% else %}Inactief{% endif %}
+                    </div>
+                    <div class="badge badge-outline">{{ prompt.get_prompt_type_display }}</div>
+                    <div class="text-sm text-base-content/70">v{{ prompt.version }}</div>
+                </div>
+                
+                <div class="bg-base-100 p-4 rounded-lg">
+                    <pre class="whitespace-pre-wrap text-sm">{{ prompt.content }}</pre>
+                </div>
+                
+                <div class="text-sm text-base-content/70 mt-4">
+                    <p><strong>Aangemaakt:</strong> {{ prompt.created_at|date:"d-m-Y H:i" }}</p>
+                    <p><strong>Bijgewerkt:</strong> {{ prompt.updated_at|date:"d-m-Y H:i" }}</p>
+                    {% if prompt.created_by %}
+                    <p><strong>Door:</strong> {{ prompt.created_by.username }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Versions -->
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Versiegeschiedenis
+                </h2>
+                
+                <div class="space-y-3">
+                    {% for version in versions %}
+                    <div class="flex items-center justify-between p-3 bg-base-100 rounded-lg {% if version.is_active %}ring-2 ring-primary{% endif %}">
+                        <div class="flex items-center gap-3">
+                            <div class="badge badge-{{ version.is_active|yesno:'success,ghost' }}">
+                                v{{ version.version }}
+                            </div>
+                            <div>
+                                <div class="font-medium">{{ version.created_at|date:"d-m-Y H:i" }}</div>
+                                <div class="text-sm text-base-content/70">
+                                    {{ version.content|truncatechars:50 }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{% url 'vector_matching_app:prompt_detail' version.id %}" class="btn btn-ghost btn-xs">
+                                Bekijk
+                            </a>
+                            {% if not version.is_active %}
+                            <form method="post" action="{% url 'vector_matching_app:prompt_activate' version.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-xs">
+                                    Activeer
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-base-content/70 text-center py-4">Geen versies gevonden</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="card bg-base-200 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Recente Activiteit
+            </h2>
+            
+            {% if logs %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th>Actie</th>
+                                <th>Datum</th>
+                                <th>Gebruiker</th>
+                                <th>Notities</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <div class="badge badge-outline">{{ log.get_action_display }}</div>
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.timestamp|date:"d-m-Y H:i" }}
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.user.username|default:"Systeem" }}
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.notes|default:"-" }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-base-content/70 text-center py-4">Geen activiteit gevonden</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

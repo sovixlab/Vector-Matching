@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Prompt Beheer - Vector Matching{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">Prompt Beheer</h1>
+            <p class="text-base-content/70 mt-2">Beheer embedding prompts met versiegeschiedenis</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'vector_matching_app:prompt_create' %}" class="btn btn-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Nieuwe Prompt
+            </a>
+            <a href="{% url 'vector_matching_app:prompt_logs' %}" class="btn btn-outline">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Prompts Table -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">Alle Prompts</h2>
+            
+            {% if prompts %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-base-content">Naam</th>
+                                <th class="text-base-content">Type</th>
+                                <th class="text-base-content">Versie</th>
+                                <th class="text-base-content">Status</th>
+                                <th class="text-base-content">Aangemaakt</th>
+                                <th class="text-base-content">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prompt in prompts %}
+                            <tr>
+                                <td>
+                                    <div class="font-medium">{{ prompt.name }}</div>
+                                    <div class="text-sm text-base-content/70">{{ prompt.content|truncatechars:100 }}</div>
+                                </td>
+                                <td>
+                                    <div class="badge badge-outline">{{ prompt.get_prompt_type_display }}</div>
+                                </td>
+                                <td class="text-base-content/70">
+                                    v{{ prompt.version }}
+                                </td>
+                                <td>
+                                    {% if prompt.is_active %}
+                                        <div class="badge badge-success">Actief</div>
+                                    {% else %}
+                                        <div class="badge badge-ghost">Inactief</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ prompt.created_at|date:"d-m-Y H:i" }}
+                                </td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <a href="{% url 'vector_matching_app:prompt_detail' prompt.id %}" class="btn btn-ghost btn-xs">
+                                            Bekijk
+                                        </a>
+                                        <a href="{% url 'vector_matching_app:prompt_edit' prompt.id %}" class="btn btn-ghost btn-xs">
+                                            Bewerk
+                                        </a>
+                                        {% if not prompt.is_active %}
+                                        <form method="post" action="{% url 'vector_matching_app:prompt_activate' prompt.id %}" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-primary btn-xs">
+                                                Activeer
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 text-base-content/30 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <p class="text-base-content/70 text-lg mb-4">Nog geen prompts aangemaakt</p>
+                    <a href="{% url 'vector_matching_app:prompt_create' %}" class="btn btn-primary">
+                        Eerste Prompt Aanmaken
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

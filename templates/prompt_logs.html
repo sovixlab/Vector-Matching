@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Prompt Logs - Vector Matching{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">Prompt Logs</h1>
+            <p class="text-base-content/70 mt-2">Overzicht van alle prompt wijzigingen</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'vector_matching_app:prompts' %}" class="btn btn-outline">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Terug naar Prompts
+            </a>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Logs Table -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Recente Activiteit
+            </h2>
+            
+            {% if logs %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-base-content">Prompt</th>
+                                <th class="text-base-content">Actie</th>
+                                <th class="text-base-content">Datum</th>
+                                <th class="text-base-content">Gebruiker</th>
+                                <th class="text-base-content">Notities</th>
+                                <th class="text-base-content">Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <div class="font-medium">{{ log.prompt.name }}</div>
+                                    <div class="text-sm text-base-content/70">v{{ log.prompt.version }}</div>
+                                </td>
+                                <td>
+                                    <div class="badge badge-{{ log.action|yesno:'success,info,warning,error,neutral' }}">
+                                        {{ log.get_action_display }}
+                                    </div>
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.timestamp|date:"d-m-Y H:i" }}
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.user.username|default:"Systeem" }}
+                                </td>
+                                <td class="text-sm text-base-content/70">
+                                    {{ log.notes|default:"-" }}
+                                </td>
+                                <td>
+                                    <a href="{% url 'vector_matching_app:prompt_detail' log.prompt.id %}" class="btn btn-ghost btn-xs">
+                                        Bekijk
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 text-base-content/30 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p class="text-base-content/70 text-lg mb-4">Nog geen logs gevonden</p>
+                    <a href="{% url 'vector_matching_app:prompt_create' %}" class="btn btn-primary">
+                        Eerste Prompt Aanmaken
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

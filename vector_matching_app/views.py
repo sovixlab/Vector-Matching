@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from .models import Candidate
+from .models import Candidate, Prompt, PromptLog
 from .tasks import process_candidate_pipeline, reprocess_candidate
 import json
 import os
@@ -313,3 +313,120 @@ def kandidaten_bulk_delete_view(request):
         messages.error(request, f'Fout bij bulk verwijderen: {str(e)}')
     
     return redirect('vector_matching_app:kandidaten')
+
+
+# Prompt Management Views
+def prompts_list_view(request):
+    """Overzicht van alle prompts."""
+    prompts = Prompt.objects.all().order_by('name', '-version')
+    return render(request, 'prompts.html', {'prompts': prompts})
+
+
+def prompt_detail_view(request, prompt_id):
+    """Detail weergave van een prompt met versiegeschiedenis."""
+    prompt = get_object_or_404(Prompt, id=prompt_id)
+    versions = prompt.all_versions
+    logs = PromptLog.objects.filter(prompt__in=versions).order_by('-timestamp')[:20]
+    
+    context = {
+        'prompt': prompt,
+        'versions': versions,
+        'logs': logs,
+    }
+    return render(request, 'prompt_detail.html', context)
+
+
+def prompt_edit_view(request, prompt_id):
+    """Bewerk een prompt."""
+    prompt = get_object_or_404(Prompt, id=prompt_id)
+    
+    if request.method == 'POST':
+        new_content = request.POST.get('content', '').strip()
+        notes = request.POST.get('notes', '').strip()
+        
+        if new_content and new_content != prompt.content:
+            # Maak nieuwe versie
+            old_content = prompt.content
+            new_version = prompt.create_new_version(new_content, request.user)
+            
+            # Log de wijziging
+            PromptLog.objects.create(
+                prompt=new_version,
+                action='updated',
+                old_content=old_content,
+                new_content=new_content,
+                user=request.user,
+                notes=notes
+            )
+            
+            messages.success(request, f'Nieuwe versie {new_version.version} van "{prompt.name}" is aangemaakt.')
+            return redirect('vector_matching_app:prompt_detail', prompt_id=new_version.id)
+        else:
+            messages.warning(request, 'Geen wijzigingen gedetecteerd.')
+    
+    return render(request, 'prompt_edit.html', {'prompt': prompt})
+
+
+def prompt_create_view(request):
+    """Maak een nieuwe prompt aan."""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        prompt_type = request.POST.get('prompt_type', 'custom')
+        content = request.POST.get('content', '').strip()
+        
+        if name and content:
+            try:
+                prompt = Prompt.objects.create(
+                    name=name,
+                    prompt_type=prompt_type,
+                    content=content,
+                    created_by=request.user
+                )
+                
+                # Log de creatie
+                PromptLog.objects.create(
+                    prompt=prompt,
+                    action='created',
+                    new_content=content,
+                    user=request.user
+                )
+                
+                messages.success(request, f'Prompt "{name}" is aangemaakt.')
+                return redirect('vector_matching_app:prompt_detail', prompt_id=prompt.id)
+            except Exception as e:
+                messages.error(request, f'Fout bij aanmaken prompt: {str(e)}')
+        else:
+            messages.error(request, 'Naam en inhoud zijn verplicht.')
+    
+    return render(request, 'prompt_create.html')
+
+
+def prompt_activate_view(request, prompt_id):
+    """Activeer een specifieke versie van een prompt."""
+    prompt = get_object_or_404(Prompt, id=prompt_id)
+    
+    if request.method == 'POST':
+        # Deactiveer alle andere versies van dezelfde prompt
+        Prompt.objects.filter(name=prompt.name).update(is_active=False)
+        
+        # Activeer deze versie
+        prompt.is_active = True
+        prompt.save()
+        
+        # Log de activatie
+        PromptLog.objects.create(
+            prompt=prompt,
+            action='activated',
+            user=request.user,
+            notes=f'Versie {prompt.version} geactiveerd'
+        )
+        
+        messages.success(request, f'Versie {prompt.version} van "{prompt.name}" is geactiveerd.')
+    
+    return redirect('vector_matching_app:prompt_detail', prompt_id=prompt.id)
+
+
+def prompt_logs_view(request):
+    """Overzicht van alle prompt logs."""
+    logs = PromptLog.objects.all().order_by('-timestamp')[:100]
+    return render(request, 'prompt_logs.html', {'logs': logs})

@@ -1,5 +1,6 @@
 from django.db import models
 from pgvector.django import VectorField
+from django.contrib.auth.models import User
 
 
 class Document(models.Model):
@@ -109,3 +110,86 @@ class Candidate(models.Model):
         if error:
             self.error_message = error
         self.save(update_fields=['embed_status', 'processing_step', 'error_message', 'updated_at'])
+
+
+class Prompt(models.Model):
+    """Model voor embedding prompts met versiegeschiedenis."""
+    
+    PROMPT_TYPES = [
+        ('cv_parsing', 'CV Parsing'),
+        ('profile_summary', 'Profiel Samenvatting'),
+        ('custom', 'Aangepast'),
+    ]
+    
+    name = models.CharField(max_length=100, unique=True)
+    prompt_type = models.CharField(max_length=20, choices=PROMPT_TYPES)
+    content = models.TextField()
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='versions')
+    
+    class Meta:
+        ordering = ['-version', '-created_at']
+        unique_together = ['name', 'version']
+    
+    def __str__(self):
+        return f"{self.name} v{self.version}"
+    
+    def create_new_version(self, new_content, user=None):
+        """Maak een nieuwe versie van deze prompt."""
+        # Deactiveer huidige versie
+        self.is_active = False
+        self.save()
+        
+        # Maak nieuwe versie
+        new_version = Prompt.objects.create(
+            name=self.name,
+            prompt_type=self.prompt_type,
+            content=new_content,
+            version=self.version + 1,
+            is_active=True,
+            created_by=user,
+            parent=self
+        )
+        return new_version
+    
+    @property
+    def all_versions(self):
+        """Krijg alle versies van deze prompt."""
+        if self.parent:
+            return Prompt.objects.filter(parent=self.parent).order_by('-version')
+        return Prompt.objects.filter(parent=self).order_by('-version')
+    
+    @classmethod
+    def get_active_prompt(cls, prompt_type):
+        """Krijg de actieve prompt voor een bepaald type."""
+        return cls.objects.filter(prompt_type=prompt_type, is_active=True).first()
+
+
+class PromptLog(models.Model):
+    """Log voor prompt wijzigingen."""
+    
+    ACTION_TYPES = [
+        ('created', 'Aangemaakt'),
+        ('updated', 'Bijgewerkt'),
+        ('activated', 'Geactiveerd'),
+        ('deactivated', 'Gedeactiveerd'),
+        ('deleted', 'Verwijderd'),
+    ]
+    
+    prompt = models.ForeignKey(Prompt, on_delete=models.CASCADE, related_name='logs')
+    action = models.CharField(max_length=20, choices=ACTION_TYPES)
+    old_content = models.TextField(blank=True, null=True)
+    new_content = models.TextField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.prompt.name} - {self.get_action_display()} ({self.timestamp})"
