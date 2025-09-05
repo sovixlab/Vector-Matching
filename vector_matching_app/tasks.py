@@ -240,7 +240,9 @@ def geocode_candidate(candidate_id):
             address_parts.append(candidate.city)
         
         if not address_parts:
-            raise ValueError("Geen adres informatie gevonden")
+            logger.warning(f"Geen adres informatie gevonden voor kandidaat {candidate_id}")
+            candidate.update_status('completed', 'Geocoding', 'Geen adres informatie')
+            return
         
         address = ', '.join(address_parts)
         lat, lon = None, None
@@ -295,15 +297,17 @@ def geocode_candidate(candidate_id):
             candidate.save(update_fields=['latitude', 'longitude', 'embed_status', 'processing_step', 'updated_at'])
             logger.info(f"Geocoding voltooid voor kandidaat {candidate_id}: {lat}, {lon}")
         else:
-            raise ValueError("Geen locatie gevonden via PDOK of Nominatim")
+            logger.warning(f"Geen locatie gevonden via PDOK of Nominatim voor kandidaat {candidate_id}")
+            candidate.update_status('completed', 'Geocoding', 'Geen locatie gevonden')
+            return candidate_id
         
         return candidate_id
         
     except Exception as e:
-        logger.error(f"Fout bij geocoding voor kandidaat {candidate_id}: {str(e)}")
+        logger.warning(f"Fout bij geocoding voor kandidaat {candidate_id}: {str(e)}")
         candidate = Candidate.objects.get(id=candidate_id)
-        candidate.update_status('failed', 'Geocoding', str(e))
-        raise
+        candidate.update_status('completed', 'Geocoding', f'Geocoding fout: {str(e)}')
+        return candidate_id
 
 
 def process_candidate_pipeline(candidate_id):
