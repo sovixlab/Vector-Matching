@@ -294,14 +294,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Toon live feed
         showLiveFeed(files);
-
-        // Upload bestanden
-        uploadFiles.files = files;
         uploadProgress.classList.remove('hidden');
         
-        // Simuleer progress voor demo (in echte implementatie zou dit via AJAX gaan)
-        simulateProgress(files.length);
-        
+        // Upload bestanden direct
+        uploadFiles.files = files;
         uploadForm.submit();
     }
     
@@ -373,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function simulateProgress(fileCount) {
-        // Simuleer progress voor demo doeleinden
+        // Simuleer progress voor demo doeleinden (alleen zichtbaar voor 1 seconde)
         let completed = 0;
         const total = fileCount;
         
@@ -398,7 +394,12 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 clearInterval(progressInterval);
             }
-        }, 2000 + Math.random() * 3000); // 2-5 seconden tussen updates
+        }, 200); // Snellere updates voor demo
+        
+        // Stop na 1 seconde omdat de pagina wordt doorgestuurd
+        setTimeout(() => {
+            clearInterval(progressInterval);
+        }, 1000);
     }
 });
 </script>
