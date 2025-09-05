@@ -15,12 +15,8 @@ class OpenAIClient:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is niet geconfigureerd")
         
-        # Maak client aan met expliciete parameters
-        try:
-            self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-        except Exception as e:
-            logger.error(f"Fout bij OpenAI client initialisatie: {e}")
-            raise ValueError(f"OpenAI client fout: {e}")
+        # Maak client aan met minimale parameters
+        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
     
     def embed(self, text: str, model: str = "text-embedding-3-small") -> list[float]:
         """
@@ -80,11 +76,6 @@ _openai_client = None
 def get_openai_client() -> OpenAIClient:
     """Haalt de singleton OpenAI client op."""
     global _openai_client
-    try:
-        # Reset client bij elke call om oude instanties te vermijden
+    if _openai_client is None:
         _openai_client = OpenAIClient()
-        logger.info("OpenAI client succesvol aangemaakt")
-        return _openai_client
-    except Exception as e:
-        logger.error(f"Fout bij het aanmaken van OpenAI client: {e}")
-        raise
+    return _openai_client
