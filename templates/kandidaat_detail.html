@@ -152,13 +152,33 @@
             </div>
             {% endif %}
 
-            <!-- CV Tekst (voor debugging) -->
-            {% if candidate.cv_text and candidate.embed_status == 'failed' %}
+            <!-- Profiel Samenvatting (voor embedding) -->
+            {% if candidate.profile_text %}
             <div class="card bg-base-200 shadow-xl mt-6">
                 <div class="card-body">
-                    <h2 class="card-title text-base-content mb-4">Geëxtraheerde CV Tekst</h2>
-                    <div class="max-h-96 overflow-y-auto">
-                        <pre class="text-sm text-base-content/70 whitespace-pre-wrap">{{ candidate.cv_text|truncatechars:2000 }}</pre>
+                    <h2 class="card-title text-base-content mb-4">Profiel Samenvatting (voor Embedding)</h2>
+                    <div class="prose prose-invert max-w-none">
+                        <p class="text-base-content">{{ candidate.profile_text }}</p>
+                    </div>
+                    {% if candidate.embedding %}
+                    <div class="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="text-success font-medium">Embedding gegenereerd ({{ candidate.embedding|length }} dimensies)</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif candidate.cv_text and candidate.embed_status == 'failed' %}
+            <div class="card bg-error/10 border border-error/20 shadow-xl mt-6">
+                <div class="card-body">
+                    <h2 class="card-title text-error mb-4">Verwerking Mislukt</h2>
+                    <p class="text-error/80 mb-4">De CV tekst is geëxtraheerd, maar de verwerking naar profiel samenvatting is mislukt.</p>
+                    <div class="max-h-48 overflow-y-auto">
+                        <pre class="text-sm text-error/70 whitespace-pre-wrap">{{ candidate.cv_text|truncatechars:1000 }}</pre>
                     </div>
                 </div>
             </div>
