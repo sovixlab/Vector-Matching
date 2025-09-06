@@ -172,7 +172,9 @@
     {% csrf_token %}
     <input type="file" id="upload-files" name="files" multiple accept=".pdf" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden;">
 </form>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JavaScript geladen');
