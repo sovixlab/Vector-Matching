@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             dropzone.classList.remove('border-primary', 'bg-primary/5');
             
-            const files = Array.from(e.dataTransfer.files);
+            const files = e.dataTransfer.files;
             console.log('Bestanden gedropt:', files.length);
             handleFileList(files);
         });
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleFiles(e) {
-        const files = Array.from(e.target.files);
+        const files = e.target.files;
         handleFileList(files);
     }
 
@@ -291,7 +291,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Controleer bestandstypen
         const invalidFiles = [];
-        for (let file of files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
             if (!file.name.toLowerCase().endsWith('.pdf')) {
                 invalidFiles.push(file.name);
             }
@@ -304,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('Bestanden gevalideerd, start upload');
         
-        // Upload bestanden direct
+        // Zet de files in de input en submit
         uploadFiles.files = files;
         uploadForm.submit();
     }
