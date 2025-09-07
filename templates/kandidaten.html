@@ -16,7 +16,7 @@
                 <svg class="w-12 h-12 text-primary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                 </svg>
-                <h3 class="text-lg font-medium text-base-content mb-2">NIEUWE DROPZONE - Sleep PDF bestanden hierheen</h3>
+                <h3 class="text-lg font-medium text-base-content mb-2">Sleep PDF bestanden hierheen</h3>
                 <p class="text-base-content/60 mb-4">of klik om bestanden te selecteren</p>
                 <input type="file" id="new-upload-files" multiple accept=".pdf" class="hidden">
             </div>
@@ -34,29 +34,6 @@
         </div>
     {% endif %}
 
-    <!-- Upload Dropzone -->
-    <div class="card bg-base-200 shadow-xl mb-8">
-        <div class="card-body">
-            <h2 class="card-title text-base-content mb-4">CV Upload</h2>
-            
-            <!-- Dropzone -->
-            <div id="dropzone" class="border-2 border-dashed border-base-content/20 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                <div class="flex flex-col items-center">
-                    <svg class="w-12 h-12 text-base-content/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    <p class="text-base-content/60 mb-2">
-                        Sleep PDF bestanden hierheen of klik om te selecteren
-                    </p>
-                    <p class="text-sm text-base-content/40">
-                        Maximaal 100 PDF bestanden tegelijk
-                    </p>
-                </div>
-            </div>
-
-            
-        </div>
-    </div>
 
     <!-- Kandidaten Tabel -->
     <div class="card bg-base-200 shadow-xl">
@@ -221,56 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // OUDE DROPZONE
-    const dropzone = document.getElementById('dropzone');
-    const uploadForm = document.getElementById('upload-form');
-    const uploadFiles = document.getElementById('upload-files');
-    const uploadProgress = document.getElementById('upload-progress');
-    
-    console.log('Elementen gevonden:', {
-        dropzone: !!dropzone,
-        uploadForm: !!uploadForm,
-        uploadFiles: !!uploadFiles,
-        uploadProgress: !!uploadProgress
-    });
-
-    // Click to select files
-    if (dropzone && uploadFiles) {
-        dropzone.addEventListener('click', () => {
-            console.log('Dropzone geklikt');
-            uploadFiles.click();
-        });
-
-        // File input change
-        uploadFiles.addEventListener('change', handleFiles);
-
-        // Drag and drop
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('border-primary', 'bg-primary/5');
-        });
-
-        dropzone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('border-primary', 'bg-primary/5');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('border-primary', 'bg-primary/5');
-            
-            const files = e.dataTransfer.files;
-            console.log('Bestanden gedropt:', files.length);
-            handleFileList(files);
-        });
-    } else {
-        console.error('Dropzone of uploadFiles element niet gevonden!');
-    }
-
-    function handleFiles(e) {
-        const files = e.target.files;
-        handleFileList(files);
-    }
 
     // NIEUWE DROPZONE - EENVOUDIGE UPLOAD FUNCTIE
     function handleNewFiles(files) {
@@ -394,40 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function handleFileList(files) {
-        console.log('handleFileList aangeroepen met', files.length, 'bestanden');
-        
-        // Validatie
-        if (files.length === 0) {
-            console.log('Geen bestanden geselecteerd');
-            return;
-        }
-        
-        if (files.length > 100) {
-            alert('Maximaal 100 bestanden tegelijk toegestaan.');
-            return;
-        }
-
-        // Controleer bestandstypen
-        const invalidFiles = [];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                invalidFiles.push(file.name);
-            }
-        }
-
-        if (invalidFiles.length > 0) {
-            alert(`Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: ${invalidFiles.join(', ')}`);
-            return;
-        }
-
-        console.log('Bestanden gevalideerd, start upload');
-        
-        // Zet de files in de input en submit
-        uploadFiles.files = files;
-        uploadForm.submit();
-    }
     
 });
 </script>
