@@ -9,7 +9,7 @@
         <h1 class="text-4xl font-bold text-base-content">Kandidaten</h1>
     </div>
 
-    <!-- NIEUWE DROPZONE - TEST VERSIE -->
+    <!-- UPLOAD DROPZONE -->
     <div class="mb-8">
         <div id="new-dropzone" class="border-2 border-dashed border-primary rounded-lg p-8 text-center bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
             <div class="flex flex-col items-center">
@@ -19,6 +19,54 @@
                 <h3 class="text-lg font-medium text-base-content mb-2">Sleep PDF bestanden hierheen</h3>
                 <p class="text-base-content/60 mb-4">of klik om bestanden te selecteren</p>
                 <input type="file" id="new-upload-files" multiple accept=".pdf" class="hidden">
+            </div>
+        </div>
+        
+        <!-- UPLOAD PROGRESS -->
+        <div id="upload-progress" class="hidden mt-4">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h3 class="card-title text-base-content mb-4">
+                        <div class="loading loading-spinner loading-sm text-primary"></div>
+                        Uploaden en verwerken...
+                    </h3>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm text-base-content/60 mb-2">
+                            <span id="progress-text">0 van 0 bestanden verwerkt</span>
+                            <span id="progress-percentage">0%</span>
+                        </div>
+                        <progress id="progress-bar" class="progress progress-primary w-full" value="0" max="100"></progress>
+                    </div>
+                    
+                    <!-- Results -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Toegevoegd -->
+                        <div class="bg-success/10 border border-success/20 rounded-lg p-3">
+                            <h4 class="font-medium text-success mb-2">✅ Toegevoegd</h4>
+                            <div id="added-list" class="text-sm text-success/80 space-y-1">
+                                <p class="text-base-content/40">Geen bestanden toegevoegd</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Overgeslagen -->
+                        <div class="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                            <h4 class="font-medium text-warning mb-2">⏭️ Overgeslagen</h4>
+                            <div id="skipped-list" class="text-sm text-warning/80 space-y-1">
+                                <p class="text-base-content/40">Geen duplicaten gevonden</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Mislukt -->
+                        <div class="bg-error/10 border border-error/20 rounded-lg p-3">
+                            <h4 class="font-medium text-error mb-2">❌ Mislukt</h4>
+                            <div id="failed-list" class="text-sm text-error/80 space-y-1">
+                                <p class="text-base-content/40">Geen fouten opgetreden</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -199,9 +247,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
 
-    // NIEUWE DROPZONE - EENVOUDIGE UPLOAD FUNCTIE
+    // UPLOAD FUNCTIE MET PROGRESS TRACKING
     function handleNewFiles(files) {
-        console.log('Nieuwe dropzone: handleNewFiles aangeroepen met', files.length, 'bestanden');
+        console.log('Upload: handleNewFiles aangeroepen met', files.length, 'bestanden');
         
         if (!files || files.length === 0) {
             console.log('Geen bestanden geselecteerd');
@@ -210,11 +258,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Valideer bestanden
         const validFiles = [];
+        const invalidFiles = [];
+        
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             if (file.type === 'application/pdf') {
                 validFiles.push(file);
             } else {
+                invalidFiles.push(file.name);
                 console.warn('Bestand niet ondersteund:', file.name, file.type);
             }
         }
@@ -224,19 +275,83 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log('Nieuwe dropzone: start upload van', validFiles.length, 'bestanden');
+        // Toon progress UI
+        showProgressUI(validFiles.length);
         
-        // Maak FormData
-        const formData = new FormData();
-        for (let i = 0; i < validFiles.length; i++) {
-            formData.append('files', validFiles[i]);
+        // Upload bestanden één voor één
+        uploadFilesSequentially(validFiles, 0, [], [], []);
+    }
+    
+    function showProgressUI(totalFiles) {
+        const progressDiv = document.getElementById('upload-progress');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        
+        progressDiv.classList.remove('hidden');
+        progressText.textContent = `0 van ${totalFiles} bestanden verwerkt`;
+        progressBar.value = 0;
+        progressBar.max = totalFiles;
+        progressPercentage.textContent = '0%';
+        
+        // Reset resultaten
+        document.getElementById('added-list').innerHTML = '<p class="text-base-content/40">Geen bestanden toegevoegd</p>';
+        document.getElementById('skipped-list').innerHTML = '<p class="text-base-content/40">Geen duplicaten gevonden</p>';
+        document.getElementById('failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+    }
+    
+    function updateProgress(current, total, added, skipped, failed) {
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        
+        const percentage = Math.round((current / total) * 100);
+        progressText.textContent = `${current} van ${total} bestanden verwerkt`;
+        progressBar.value = current;
+        progressPercentage.textContent = `${percentage}%`;
+        
+        // Update resultaten
+        updateResultList('added-list', added, 'Geen bestanden toegevoegd');
+        updateResultList('skipped-list', skipped, 'Geen duplicaten gevonden');
+        updateResultList('failed-list', failed, 'Geen fouten opgetreden');
+    }
+    
+    function updateResultList(listId, items, emptyText) {
+        const listDiv = document.getElementById(listId);
+        if (items.length === 0) {
+            listDiv.innerHTML = `<p class="text-base-content/40">${emptyText}</p>`;
+        } else {
+            listDiv.innerHTML = items.map(item => `<p>• ${item}</p>`).join('');
         }
+    }
+    
+    function uploadFilesSequentially(files, index, added, skipped, failed) {
+        if (index >= files.length) {
+            // Alle bestanden verwerkt
+            console.log('Upload voltooid:', { added, skipped, failed });
+            
+            // Toon eindresultaat
+            setTimeout(() => {
+                if (added.length > 0 || skipped.length > 0 || failed.length > 0) {
+                    // Reload pagina om nieuwe kandidaten te tonen
+                    window.location.reload();
+                }
+            }, 2000);
+            return;
+        }
+        
+        const file = files[index];
+        console.log(`Uploading file ${index + 1}/${files.length}:`, file.name);
+        
+        // Maak FormData voor dit bestand
+        const formData = new FormData();
+        formData.append('files', file);
         
         // Voeg CSRF token toe
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
         formData.append('csrfmiddlewaretoken', csrfToken);
         
-        // Upload
+        // Upload dit bestand
         fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
             method: 'POST',
             body: formData,
@@ -245,21 +360,32 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => {
-            console.log('Nieuwe dropzone: upload response', response.status);
+            console.log(`Upload response voor ${file.name}:`, response.status);
             if (response.ok) {
                 return response.text();
             } else {
-                throw new Error('Upload failed: ' + response.status);
+                throw new Error(`Upload failed: ${response.status}`);
             }
         })
         .then(data => {
-            console.log('Nieuwe dropzone: upload succesvol');
-            // Reload pagina
-            window.location.reload();
+            console.log(`Upload succesvol voor ${file.name}`);
+            added.push(file.name);
+            updateProgress(index + 1, files.length, added, skipped, failed);
+            
+            // Ga door naar volgende bestand
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1, added, skipped, failed);
+            }, 1000); // 1 seconde delay tussen bestanden
         })
         .catch(error => {
-            console.error('Nieuwe dropzone: upload error', error);
-            alert('Upload mislukt: ' + error.message);
+            console.error(`Upload error voor ${file.name}:`, error);
+            failed.push(`${file.name}: ${error.message}`);
+            updateProgress(index + 1, files.length, added, skipped, failed);
+            
+            // Ga door naar volgende bestand
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1, added, skipped, failed);
+            }, 1000);
         });
     }
 
