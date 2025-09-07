@@ -9,6 +9,20 @@
         <h1 class="text-4xl font-bold text-base-content">Kandidaten</h1>
     </div>
 
+    <!-- NIEUWE DROPZONE - TEST VERSIE -->
+    <div class="mb-8">
+        <div id="new-dropzone" class="border-2 border-dashed border-primary rounded-lg p-8 text-center bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+            <div class="flex flex-col items-center">
+                <svg class="w-12 h-12 text-primary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <h3 class="text-lg font-medium text-base-content mb-2">NIEUWE DROPZONE - Sleep PDF bestanden hierheen</h3>
+                <p class="text-base-content/60 mb-4">of klik om bestanden te selecteren</p>
+                <input type="file" id="new-upload-files" multiple accept=".pdf" class="hidden">
+            </div>
+        </div>
+    </div>
+
     <!-- Messages -->
     {% if messages %}
         <div class="mb-6">
@@ -167,6 +181,47 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JavaScript geladen');
     
+    // NIEUWE DROPZONE - EENVOUDIGE VERSIE
+    const newDropzone = document.getElementById('new-dropzone');
+    const newUploadFiles = document.getElementById('new-upload-files');
+    
+    if (newDropzone && newUploadFiles) {
+        console.log('Nieuwe dropzone gevonden!');
+        
+        // Click to select files
+        newDropzone.addEventListener('click', () => {
+            console.log('Nieuwe dropzone geklikt');
+            newUploadFiles.click();
+        });
+        
+        // File input change
+        newUploadFiles.addEventListener('change', (e) => {
+            console.log('Nieuwe dropzone: bestanden geselecteerd', e.target.files.length);
+            handleNewFiles(e.target.files);
+        });
+        
+        // Drag and drop
+        newDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            newDropzone.classList.add('border-accent', 'bg-accent/10');
+        });
+        
+        newDropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            newDropzone.classList.remove('border-accent', 'bg-accent/10');
+        });
+        
+        newDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            newDropzone.classList.remove('border-accent', 'bg-accent/10');
+            
+            const files = e.dataTransfer.files;
+            console.log('Nieuwe dropzone: bestanden gedropt', files.length);
+            handleNewFiles(files);
+        });
+    }
+    
+    // OUDE DROPZONE
     const dropzone = document.getElementById('dropzone');
     const uploadForm = document.getElementById('upload-form');
     const uploadFiles = document.getElementById('upload-files');
@@ -215,6 +270,70 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFiles(e) {
         const files = e.target.files;
         handleFileList(files);
+    }
+
+    // NIEUWE DROPZONE - EENVOUDIGE UPLOAD FUNCTIE
+    function handleNewFiles(files) {
+        console.log('Nieuwe dropzone: handleNewFiles aangeroepen met', files.length, 'bestanden');
+        
+        if (!files || files.length === 0) {
+            console.log('Geen bestanden geselecteerd');
+            return;
+        }
+        
+        // Valideer bestanden
+        const validFiles = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type === 'application/pdf') {
+                validFiles.push(file);
+            } else {
+                console.warn('Bestand niet ondersteund:', file.name, file.type);
+            }
+        }
+        
+        if (validFiles.length === 0) {
+            alert('Geen geldige PDF bestanden gevonden!');
+            return;
+        }
+        
+        console.log('Nieuwe dropzone: start upload van', validFiles.length, 'bestanden');
+        
+        // Maak FormData
+        const formData = new FormData();
+        for (let i = 0; i < validFiles.length; i++) {
+            formData.append('files', validFiles[i]);
+        }
+        
+        // Voeg CSRF token toe
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        // Upload
+        fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            console.log('Nieuwe dropzone: upload response', response.status);
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error('Upload failed: ' + response.status);
+            }
+        })
+        .then(data => {
+            console.log('Nieuwe dropzone: upload succesvol');
+            // Reload pagina
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Nieuwe dropzone: upload error', error);
+            alert('Upload mislukt: ' + error.message);
+        });
     }
 
     // Bulk delete functionality
