@@ -71,6 +71,54 @@
         </div>
     </div>
 
+    <!-- BULK REPROCESS PROGRESS -->
+    <div id="bulk-reprocess-progress" class="hidden mb-8">
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h3 class="card-title text-base-content mb-4">
+                    <div class="loading loading-spinner loading-sm text-info"></div>
+                    Bulk opnieuw embedden...
+                </h3>
+                
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-base-content/60 mb-2">
+                        <span id="bulk-progress-text">0 van 0 kandidaten verwerkt</span>
+                        <span id="bulk-progress-percentage">0%</span>
+                    </div>
+                    <progress id="bulk-progress-bar" class="progress progress-info w-full" value="0" max="100"></progress>
+                </div>
+                
+                <!-- Results -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Succesvol -->
+                    <div class="bg-success/10 border border-success/20 rounded-lg p-3">
+                        <h4 class="font-medium text-success mb-2">✅ Succesvol</h4>
+                        <div id="bulk-success-list" class="text-sm text-success/80 space-y-1">
+                            <p class="text-base-content/40">Geen kandidaten verwerkt</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Overgeslagen -->
+                    <div class="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                        <h4 class="font-medium text-warning mb-2">⏭️ Overgeslagen</h4>
+                        <div id="bulk-skipped-list" class="text-sm text-warning/80 space-y-1">
+                            <p class="text-base-content/40">Geen kandidaten overgeslagen</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Mislukt -->
+                    <div class="bg-error/10 border border-error/20 rounded-lg p-3">
+                        <h4 class="font-medium text-error mb-2">❌ Mislukt</h4>
+                        <div id="bulk-failed-list" class="text-sm text-error/80 space-y-1">
+                            <p class="text-base-content/40">Geen fouten opgetreden</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Messages -->
     {% if messages %}
         <div class="mb-6">
@@ -105,7 +153,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
-                        <span id="selected-count">0</span> verwijderen
+                        <span id="selected-count-delete">0</span> verwijderen
                     </button>
                 </div>
             </div>
@@ -404,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkReprocessBtn = document.getElementById('bulk-reprocess-btn');
     const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
     const selectedCountSpan = document.getElementById('selected-count');
+    const selectedCountDeleteSpan = document.getElementById('selected-count-delete');
     const candidateCheckboxes = document.querySelectorAll('.candidate-checkbox');
     const bulkReprocessForm = document.getElementById('bulk-reprocess-form');
     const bulkDeleteForm = document.getElementById('bulk-delete-form');
@@ -433,10 +482,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Bulk delete button
     bulkReprocessBtn.addEventListener('click', function() {
-        const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
+        const selectedCheckboxes = document.querySelectorAll('.candidate-checkbox:checked');
+        const selectedCount = selectedCheckboxes.length;
+        
         if (selectedCount > 0) {
             if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) opnieuw wilt embedden? Dit kan even duren.`)) {
-                bulkReprocessForm.submit();
+                startBulkReprocess(selectedCheckboxes);
             }
         }
     });
@@ -453,6 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateBulkButtons() {
         const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
         selectedCountSpan.textContent = selectedCount;
+        selectedCountDeleteSpan.textContent = selectedCount;
         bulkReprocessBtn.disabled = selectedCount === 0;
         bulkDeleteBtn.disabled = selectedCount === 0;
         
@@ -466,6 +518,122 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             selectAllCheckbox.indeterminate = true;
         }
+    }
+
+    // Bulk reprocess functions
+    function startBulkReprocess(selectedCheckboxes) {
+        const candidateIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        const totalCount = candidateIds.length;
+        
+        // Show progress UI
+        showBulkProgressUI(totalCount);
+        
+        // Process candidates one by one
+        processBulkReprocess(candidateIds, 0, [], [], []);
+    }
+    
+    function showBulkProgressUI(totalCandidates) {
+        const progressDiv = document.getElementById('bulk-reprocess-progress');
+        const progressText = document.getElementById('bulk-progress-text');
+        const progressBar = document.getElementById('bulk-progress-bar');
+        const progressPercentage = document.getElementById('bulk-progress-percentage');
+        
+        progressDiv.classList.remove('hidden');
+        progressText.textContent = `0 van ${totalCandidates} kandidaten verwerkt`;
+        progressBar.value = 0;
+        progressBar.max = totalCandidates;
+        progressPercentage.textContent = '0%';
+        
+        // Reset results
+        document.getElementById('bulk-success-list').innerHTML = '<p class="text-base-content/40">Geen kandidaten verwerkt</p>';
+        document.getElementById('bulk-skipped-list').innerHTML = '<p class="text-base-content/40">Geen kandidaten overgeslagen</p>';
+        document.getElementById('bulk-failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+    }
+    
+    function updateBulkProgress(current, total, success, skipped, failed) {
+        const progressText = document.getElementById('bulk-progress-text');
+        const progressBar = document.getElementById('bulk-progress-bar');
+        const progressPercentage = document.getElementById('bulk-progress-percentage');
+        
+        const percentage = Math.round((current / total) * 100);
+        progressText.textContent = `${current} van ${total} kandidaten verwerkt`;
+        progressBar.value = current;
+        progressPercentage.textContent = `${percentage}%`;
+        
+        // Update results
+        updateBulkResultList('bulk-success-list', success, 'Geen kandidaten verwerkt');
+        updateBulkResultList('bulk-skipped-list', skipped, 'Geen kandidaten overgeslagen');
+        updateBulkResultList('bulk-failed-list', failed, 'Geen fouten opgetreden');
+    }
+    
+    function updateBulkResultList(listId, items, emptyText) {
+        const listDiv = document.getElementById(listId);
+        if (items.length === 0) {
+            listDiv.innerHTML = `<p class="text-base-content/40">${emptyText}</p>`;
+        } else {
+            listDiv.innerHTML = items.map(item => `<p>• ${item}</p>`).join('');
+        }
+    }
+    
+    function processBulkReprocess(candidateIds, index, success, skipped, failed) {
+        if (index >= candidateIds.length) {
+            // All candidates processed
+            console.log('Bulk reprocess completed:', { success, skipped, failed });
+            
+            // Show final result and reload after delay
+            setTimeout(() => {
+                if (success.length > 0 || skipped.length > 0 || failed.length > 0) {
+                    window.location.reload();
+                }
+            }, 3000);
+            return;
+        }
+        
+        const candidateId = candidateIds[index];
+        console.log(`Processing candidate ${index + 1}/${candidateIds.length}: ${candidateId}`);
+        
+        // Make AJAX request for this candidate
+        const formData = new FormData();
+        formData.append('candidate_ids', candidateId);
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        fetch('{% url "vector_matching_app:kandidaten_bulk_reprocess" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            console.log(`Response for candidate ${candidateId}:`, response.status);
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+        })
+        .then(data => {
+            console.log(`Success for candidate ${candidateId}`);
+            success.push(`Kandidaat ${candidateId}`);
+            updateBulkProgress(index + 1, candidateIds.length, success, skipped, failed);
+            
+            // Continue to next candidate
+            setTimeout(() => {
+                processBulkReprocess(candidateIds, index + 1, success, skipped, failed);
+            }, 1000); // 1 second delay between candidates
+        })
+        .catch(error => {
+            console.error(`Error for candidate ${candidateId}:`, error);
+            failed.push(`Kandidaat ${candidateId}: ${error.message}`);
+            updateBulkProgress(index + 1, candidateIds.length, success, skipped, failed);
+            
+            // Continue to next candidate
+            setTimeout(() => {
+                processBulkReprocess(candidateIds, index + 1, success, skipped, failed);
+            }, 1000);
+        });
     }
 
     // Initialize buttons on page load
