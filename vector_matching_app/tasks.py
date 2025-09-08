@@ -482,17 +482,12 @@ Beschrijving: {vacature.beschrijving}
         
         # Genereer samenvatting met OpenAI
         client = get_openai_client()
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Je bent een expert in het samenvatten van vacatures voor matching met kandidaten."},
-                {"role": "user", "content": f"{prompt}\n\n{vacature_text}"}
-            ],
-            max_tokens=300,
-            temperature=0.3
-        )
+        messages = [
+            {"role": "system", "content": "Je bent een expert in het samenvatten van vacatures voor matching met kandidaten."},
+            {"role": "user", "content": f"{prompt}\n\n{vacature_text}"}
+        ]
         
-        summary = response.choices[0].message.content.strip()
+        summary = client.chat(messages, model="gpt-4o-mini").strip()
         
         # Sla de samenvatting op
         vacature.samenvatting = summary
@@ -519,12 +514,7 @@ def generate_vacature_embedding(vacature_id):
         
         # Genereer embedding met OpenAI
         client = get_openai_client()
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text_for_embedding
-        )
-        
-        embedding = response.data[0].embedding
+        embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
         # Sla de embedding op
         vacature.embedding = embedding
