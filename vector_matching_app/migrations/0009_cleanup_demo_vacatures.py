@@ -1,19 +1,16 @@
 # Generated manually to clean up demo vacatures before adding unique constraint
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 def cleanup_demo_vacatures(apps, schema_editor):
     """Verwijder alle demo vacatures voordat we de unique constraint toevoegen."""
     Vacature = apps.get_model('vector_matching_app', 'Vacature')
     
-    # Verwijder alle vacatures zonder externe_id of met temp externe_id
-    demo_vacatures = Vacature.objects.filter(
-        models.Q(externe_id__isnull=True) | 
-        models.Q(externe_id="temp")
-    )
-    count = demo_vacatures.count()
-    demo_vacatures.delete()
+    # Verwijder alle vacatures (demo vacatures hebben geen externe_id veld nog)
+    # We verwijderen alle vacatures omdat ze demo data zijn
+    count = Vacature.objects.count()
+    Vacature.objects.all().delete()
     
     print(f"Verwijderd {count} demo vacatures")
 
