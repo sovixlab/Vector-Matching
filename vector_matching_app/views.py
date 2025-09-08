@@ -448,6 +448,27 @@ CV tekst:
             is_active=True
         )
     
+    # Vacature Samenvatting Prompt
+    if not Prompt.objects.filter(prompt_type='vacature_summary').exists():
+        Prompt.objects.create(
+            name='Vacature Samenvatting',
+            prompt_type='vacature_summary',
+            content="""Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de vacature samenvat voor matching met kandidaten. Focus vooral op:
+
+1. Functietitel en niveau
+2. Belangrijkste eisen en kwalificaties
+3. Verantwoordelijkheden en taken
+4. Gewenste ervaring en opleiding
+5. Vaardigheden en competenties
+6. Locatie en arbeidsvoorwaarden (indien relevant)
+
+Gebruik alleen informatie uit de vacaturetekst. Maak het geschikt voor matching met kandidatenprofielen.
+
+Vacature tekst:
+""",
+            is_active=True
+        )
+    
     # CV Parsing Prompt
     if not Prompt.objects.filter(prompt_type='cv_parsing').exists():
         Prompt.objects.create(
@@ -714,6 +735,68 @@ def vacature_detail_view(request, vacature_id):
     return render(request, 'vacature_detail.html', {
         'vacature': vacature
     })
+
+
+@login_required
+def vacature_reprocess_view(request, vacature_id):
+    """Herverwerk een vacature: genereer nieuwe samenvatting en embedding."""
+    vacature = get_object_or_404(Vacature, id=vacature_id)
+    
+    try:
+        from .tasks import reprocess_vacature_embedding
+        reprocess_vacature_embedding(vacature_id)
+        messages.success(request, f'Vacature "{vacature.titel}" succesvol opnieuw geëmbedded!')
+    except Exception as e:
+        logger.error(f"Fout bij herverwerken vacature {vacature_id}: {str(e)}")
+        messages.error(request, f'Fout bij opnieuw embedden: {str(e)}')
+    
+    return redirect('vector_matching_app:vacature_detail', vacature_id=vacature_id)
+
+
+@login_required
+def vacatures_bulk_reprocess_view(request):
+    """Bulk herverwerk vacatures: genereer nieuwe samenvattingen en embeddings."""
+    if request.method != 'POST':
+        return redirect('vector_matching_app:vacatures')
+    
+    vacature_ids_str = request.POST.get('vacature_ids', '')
+    if not vacature_ids_str:
+        messages.error(request, 'Geen vacatures geselecteerd.')
+        return redirect('vector_matching_app:vacatures')
+    
+    try:
+        vacature_ids = [int(id.strip()) for id in vacature_ids_str.split(',') if id.strip()]
+        vacatures = Vacature.objects.filter(id__in=vacature_ids)
+        
+        if not vacatures.exists():
+            messages.error(request, 'Geen geldige vacatures gevonden.')
+            return redirect('vector_matching_app:vacatures')
+        
+        from .tasks import reprocess_vacature_embedding
+        import time
+        
+        success_count = 0
+        error_count = 0
+        
+        for vacature in vacatures:
+            try:
+                reprocess_vacature_embedding(vacature.id)
+                success_count += 1
+                time.sleep(0.5)  # Korte pauze tussen requests
+            except Exception as e:
+                logger.error(f"Fout bij herverwerken vacature {vacature.id}: {str(e)}")
+                error_count += 1
+        
+        if success_count > 0:
+            messages.success(request, f'{success_count} vacature(s) succesvol opnieuw geëmbedded!')
+        if error_count > 0:
+            messages.error(request, f'{error_count} vacature(s) gefaald bij opnieuw embedden.')
+            
+    except Exception as e:
+        logger.error(f"Fout bij bulk herverwerken vacatures: {str(e)}")
+        messages.error(request, f'Fout bij bulk opnieuw embedden: {str(e)}')
+    
+    return redirect('vector_matching_app:vacatures')
 
 
 # Authentication Views

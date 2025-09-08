@@ -4,7 +4,7 @@ import os
 import requests
 from django.conf import settings
 from django.core.files.base import ContentFile
-from .models import Candidate
+from .models import Candidate, Vacature, Prompt
 from .services.openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
@@ -432,4 +432,140 @@ def reprocess_candidate(candidate_id):
         logger.error(f"Fout bij opnieuw embedden voor kandidaat {candidate_id}: {str(e)}")
         candidate = Candidate.objects.get(id=candidate_id)
         candidate.update_status('failed', 'Opnieuw embedden mislukt', str(e))
+        raise
+
+
+# Vacature Processing Functions
+def generate_vacature_summary(vacature_id):
+    """Genereer een AI samenvatting voor een vacature."""
+    try:
+        vacature = Vacature.objects.get(id=vacature_id)
+        
+        # Haal de actieve vacature samenvatting prompt op
+        try:
+            prompt_obj = Prompt.objects.filter(
+                prompt_type='vacature_summary',
+                is_active=True
+            ).first()
+            
+            if prompt_obj:
+                prompt = prompt_obj.content
+            else:
+                # Fallback prompt
+                prompt = """Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de vacature samenvat voor matching met kandidaten. Focus vooral op:
+
+1. Functietitel en niveau
+2. Belangrijkste eisen en kwalificaties
+3. Verantwoordelijkheden en taken
+4. Gewenste ervaring en opleiding
+5. Vaardigheden en competenties
+6. Locatie en arbeidsvoorwaarden (indien relevant)
+
+Gebruik alleen informatie uit de vacaturetekst. Maak het geschikt voor matching met kandidatenprofielen.
+
+Vacature tekst:
+"""
+        except Exception as e:
+            logger.warning(f"Kon prompt niet ophalen, gebruik fallback: {str(e)}")
+            prompt = """Schrijf één zakelijke Nederlandse alinea (80–140 woorden) die de vacature samenvat voor matching met kandidaten. Focus vooral op functietitel, eisen, verantwoordelijkheden, ervaring en vaardigheden.
+
+Vacature tekst:
+"""
+        
+        # Bereid de vacature tekst voor
+        vacature_text = f"""
+Titel: {vacature.titel}
+Organisatie: {vacature.organisatie}
+Locatie: {vacature.plaats}, {vacature.postcode}
+Beschrijving: {vacature.beschrijving}
+"""
+        
+        # Genereer samenvatting met OpenAI
+        client = get_openai_client()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Je bent een expert in het samenvatten van vacatures voor matching met kandidaten."},
+                {"role": "user", "content": f"{prompt}\n\n{vacature_text}"}
+            ],
+            max_tokens=300,
+            temperature=0.3
+        )
+        
+        summary = response.choices[0].message.content.strip()
+        
+        # Sla de samenvatting op
+        vacature.samenvatting = summary
+        vacature.save()
+        
+        logger.info(f"Samenvatting gegenereerd voor vacature {vacature_id}")
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Fout bij genereren samenvatting voor vacature {vacature_id}: {str(e)}")
+        raise
+
+
+def generate_vacature_embedding(vacature_id):
+    """Genereer een embedding voor een vacature."""
+    try:
+        vacature = Vacature.objects.get(id=vacature_id)
+        
+        # Gebruik de samenvatting als basis voor de embedding
+        text_for_embedding = vacature.samenvatting or vacature.beschrijving or f"{vacature.titel} {vacature.organisatie}"
+        
+        if not text_for_embedding.strip():
+            raise ValueError("Geen tekst beschikbaar voor embedding")
+        
+        # Genereer embedding met OpenAI
+        client = get_openai_client()
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text_for_embedding
+        )
+        
+        embedding = response.data[0].embedding
+        
+        # Sla de embedding op
+        vacature.embedding = embedding
+        vacature.save()
+        
+        logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
+        return embedding
+        
+    except Exception as e:
+        logger.error(f"Fout bij genereren embedding voor vacature {vacature_id}: {str(e)}")
+        raise
+
+
+def process_vacature_embedding(vacature_id):
+    """Volledige pipeline voor vacature embedding: samenvatting + embedding."""
+    try:
+        logger.info(f"Start verwerking vacature {vacature_id}")
+        
+        # Stap 1: Genereer samenvatting
+        generate_vacature_summary(vacature_id)
+        
+        # Stap 2: Genereer embedding
+        generate_vacature_embedding(vacature_id)
+        
+        logger.info(f"Vacature {vacature_id} succesvol verwerkt")
+        
+    except Exception as e:
+        logger.error(f"Fout bij verwerken vacature {vacature_id}: {str(e)}")
+        raise
+
+
+def reprocess_vacature_embedding(vacature_id):
+    """Herverwerk een vacature: genereer nieuwe samenvatting en embedding."""
+    try:
+        logger.info(f"Start herverwerking vacature {vacature_id}")
+        
+        # Herverwerk de vacature
+        process_vacature_embedding(vacature_id)
+        
+        logger.info(f"Vacature {vacature_id} succesvol herverwerkt")
+        
+    except Exception as e:
+        logger.error(f"Fout bij herverwerken vacature {vacature_id}: {str(e)}")
         raise

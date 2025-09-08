@@ -41,10 +41,39 @@
             </h2>
             
             {% if vacatures %}
+                <!-- Bulk Actions -->
+                <div class="flex gap-4 mb-4">
+                    <button id="select-all-btn" class="btn btn-outline btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Alles selecteren
+                    </button>
+                    <button id="deselect-all-btn" class="btn btn-outline btn-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Deselecteren
+                    </button>
+                    <form method="post" action="{% url 'vector_matching_app:vacatures_bulk_reprocess' %}" id="bulk-reprocess-form" class="hidden">
+                        {% csrf_token %}
+                        <input type="hidden" name="vacature_ids" id="bulk-vacature-ids">
+                        <button type="submit" class="btn btn-info btn-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span id="bulk-reprocess-text">Opnieuw embedden (<span id="selected-count">0</span>)</span>
+                        </button>
+                    </form>
+                </div>
+                
                 <div class="overflow-x-auto">
                     <table class="table table-zebra w-full">
                         <thead>
                             <tr>
+                                <th class="text-base-content">
+                                    <input type="checkbox" id="select-all-checkbox" class="checkbox checkbox-sm">
+                                </th>
                                 <th class="text-base-content">Titel</th>
                                 <th class="text-base-content">Organisatie</th>
                                 <th class="text-base-content">Plaats</th>
@@ -56,6 +85,10 @@
                         <tbody>
                             {% for vacature in vacatures %}
                             <tr>
+                                <td>
+                                    <input type="checkbox" class="vacature-checkbox checkbox checkbox-sm" 
+                                           value="{{ vacature.id }}" data-vacature-title="{{ vacature.titel }}">
+                                </td>
                                 <td class="text-base-content">
                                     <a href="{% url 'vector_matching_app:vacature_detail' vacature.id %}" 
                                        class="font-medium link link-primary hover:link-hover">
@@ -118,6 +151,99 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const vacatureCheckboxes = document.querySelectorAll('.vacature-checkbox');
+    const bulkReprocessForm = document.getElementById('bulk-reprocess-form');
+    const bulkVacatureIds = document.getElementById('bulk-vacature-ids');
+    const selectedCount = document.getElementById('selected-count');
+    const bulkReprocessText = document.getElementById('bulk-reprocess-text');
+
+    function updateBulkActions() {
+        const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
+        const count = checkedBoxes.length;
+        
+        selectedCount.textContent = count;
+        
+        if (count > 0) {
+            bulkReprocessForm.classList.remove('hidden');
+            bulkReprocessForm.classList.add('inline-block');
+        } else {
+            bulkReprocessForm.classList.add('hidden');
+            bulkReprocessForm.classList.remove('inline-block');
+        }
+        
+        // Update select all checkbox state
+        if (count === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (count === vacatureCheckboxes.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    // Select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        vacatureCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkActions();
+    });
+
+    // Select all button
+    selectAllBtn.addEventListener('click', function() {
+        vacatureCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+        updateBulkActions();
+    });
+
+    // Deselect all button
+    deselectAllBtn.addEventListener('click', function() {
+        vacatureCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        updateBulkActions();
+    });
+
+    // Individual checkboxes
+    vacatureCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+
+    // Bulk reprocess form submission
+    bulkReprocessForm.addEventListener('submit', function(e) {
+        const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
+        const ids = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        if (ids.length === 0) {
+            e.preventDefault();
+            alert('Selecteer eerst vacatures om opnieuw te embedden.');
+            return;
+        }
+        
+        bulkVacatureIds.value = ids.join(',');
+        
+        // Show confirmation
+        const titles = Array.from(checkedBoxes).map(cb => cb.dataset.vacatureTitle);
+        const confirmMessage = `Weet je zeker dat je ${ids.length} vacature(s) opnieuw wilt embedden?\n\n${titles.slice(0, 3).join('\n')}${titles.length > 3 ? '\n...' : ''}`;
+        
+        if (!confirm(confirmMessage)) {
+            e.preventDefault();
+        }
+    });
+
+    // Initial update
+    updateBulkActions();
+    
     // Update button click handler
     const updateButton = document.querySelector('button[type="submit"]');
     if (updateButton) {

@@ -180,12 +180,23 @@
                             </div>
                         {% endif %}
                         
+                        <div class="mt-4">
+                            <form method="post" action="{% url 'vector_matching_app:vacature_reprocess' vacature.id %}" class="w-full">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline btn-info w-full">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Opnieuw embedden
+                                </button>
+                            </form>
+                        </div>
+                        
                         <div class="text-xs text-base-content/50 mt-4">
-                            <p>Later kunnen we hier knoppen toevoegen om:</p>
+                            <p>Later kunnen we hier ook knoppen toevoegen om:</p>
                             <ul class="list-disc list-inside mt-2 space-y-1">
-                                <li>Handmatig een samenvatting te genereren</li>
-                                <li>Handmatig een embedding te maken</li>
                                 <li>De vacature te matchen met kandidaten</li>
+                                <li>Bulk acties uit te voeren</li>
                             </ul>
                         </div>
                     </div>
@@ -222,3 +233,4 @@
     </div>
 </div>
 {% endblock %}
+
