@@ -409,16 +409,27 @@ def process_candidate_pipeline(candidate_id):
 
 
 def reprocess_candidate(candidate_id):
-    """Herstart de verwerkingspipeline voor een kandidaat."""
+    """Herstart alleen de profiel samenvatting en embedding voor een kandidaat."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
-        candidate.update_status('queued', 'Opnieuw verwerken')
+        candidate.update_status('processing', 'Opnieuw verwerken')
         candidate.error_message = ''
         candidate.save(update_fields=['embed_status', 'processing_step', 'error_message', 'updated_at'])
         
-        # Start pipeline opnieuw
-        return process_candidate_pipeline(candidate_id)
+        # Controleer of CV tekst beschikbaar is
+        if not candidate.cv_text:
+            raise ValueError("Geen CV tekst gevonden - kan niet opnieuw verwerken")
+        
+        # Alleen profiel samenvatting en embedding opnieuw genereren
+        generate_profile_summary_text(candidate_id)
+        embed_profile_text(candidate_id)
+        
+        candidate.update_status('completed', 'Opnieuw verwerken voltooid')
+        logger.info(f"Herverwerking voltooid voor kandidaat {candidate_id}")
+        return True
         
     except Exception as e:
-        logger.error(f"Fout bij herstarten pipeline voor kandidaat {candidate_id}: {str(e)}")
+        logger.error(f"Fout bij herverwerking voor kandidaat {candidate_id}: {str(e)}")
+        candidate = Candidate.objects.get(id=candidate_id)
+        candidate.update_status('failed', 'Herverwerking mislukt', str(e))
         raise
