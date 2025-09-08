@@ -604,6 +604,13 @@ def vacatures_list_view(request):
 def vacatures_update_view(request):
     """Update vacatures via de API endpoint."""
     try:
+        # Verwijder eerst alle demo vacatures (zonder externe_id)
+        demo_vacatures = Vacature.objects.filter(externe_id__isnull=True) | Vacature.objects.filter(externe_id="temp")
+        demo_count = demo_vacatures.count()
+        if demo_count > 0:
+            demo_vacatures.delete()
+            logger.info(f"{demo_count} demo vacatures verwijderd")
+        
         # Roep de API endpoint aan
         api_response = api_vacatures_update_view(request)
         
@@ -682,7 +689,7 @@ def api_vacatures_update_view(request):
         feed_externe_ids = set()
         
         # Verwerk elke vacature in de feed
-        for item in root.findall('.//item'):
+        for item in root.findall('.//vacature'):
             try:
                 # Haal velden op
                 externe_id = item.find('id').text if item.find('id') is not None else None
