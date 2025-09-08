@@ -49,6 +49,7 @@
                                 <th class="text-base-content">Organisatie</th>
                                 <th class="text-base-content">Plaats</th>
                                 <th class="text-base-content">Postcode</th>
+                                <th class="text-base-content">Status</th>
                                 <th class="text-base-content">URL</th>
                             </tr>
                         </thead>
@@ -66,6 +67,13 @@
                                 </td>
                                 <td class="text-base-content/70">
                                     {{ vacature.postcode }}
+                                </td>
+                                <td>
+                                    {% if vacature.actief %}
+                                        <span class="badge badge-success">Actief</span>
+                                    {% else %}
+                                        <span class="badge badge-error">Inactief</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <a href="{{ vacature.url }}" target="_blank" rel="noopener noreferrer" 

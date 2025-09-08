@@ -115,11 +115,14 @@ class Candidate(models.Model):
 class Vacature(models.Model):
     """Model voor vacatures."""
     
+    externe_id = models.CharField(max_length=100, unique=True, help_text="ID uit externe feed")
     titel = models.CharField(max_length=255)
     organisatie = models.CharField(max_length=255)
     plaats = models.CharField(max_length=100)
     postcode = models.CharField(max_length=10)
     url = models.URLField()
+    beschrijving = models.TextField(blank=True, help_text="Vacature beschrijving")
+    actief = models.BooleanField(default=True, help_text="Of de vacature nog actief is")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

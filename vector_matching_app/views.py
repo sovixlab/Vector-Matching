@@ -13,6 +13,9 @@ from .tasks import process_candidate_pipeline, reprocess_candidate
 import json
 import os
 import logging
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +28,7 @@ def index(request):
     completed_candidates = Candidate.objects.filter(embed_status='completed').count()
     queued_candidates = Candidate.objects.filter(embed_status='queued').count()
     failed_candidates = Candidate.objects.filter(embed_status='failed').count()
-    total_vacatures = Vacature.objects.count()
+    total_vacatures = Vacature.objects.filter(actief=True).count()
     
     # Haal recente kandidaten op (laatste 10)
     recent_candidates = Candidate.objects.order_by('-updated_at')[:10]
@@ -587,7 +590,7 @@ def prompt_logs_view(request):
 @login_required
 def vacatures_list_view(request):
     """Overzicht van alle vacatures."""
-    vacatures = Vacature.objects.all()
+    vacatures = Vacature.objects.filter(actief=True)
     total_count = vacatures.count()
     
     return render(request, 'vacatures.html', {
@@ -599,44 +602,24 @@ def vacatures_list_view(request):
 @require_http_methods(["POST"])
 @login_required
 def vacatures_update_view(request):
-    """Update vacatures (placeholder voor toekomstige API integratie)."""
+    """Update vacatures via de API endpoint."""
     try:
-        # TODO: Implementeer API call naar vacature bron
-        # Voor nu: mock data toevoegen
-        mock_vacatures = [
-            {
-                'titel': 'Senior Python Developer',
-                'organisatie': 'TechCorp BV',
-                'plaats': 'Amsterdam',
-                'postcode': '1012 AB',
-                'url': 'https://example.com/vacature/1'
-            },
-            {
-                'titel': 'Data Scientist',
-                'organisatie': 'DataFlow Inc',
-                'plaats': 'Utrecht',
-                'postcode': '3511 AB',
-                'url': 'https://example.com/vacature/2'
-            },
-            {
-                'titel': 'Frontend Developer',
-                'organisatie': 'WebStudio',
-                'plaats': 'Rotterdam',
-                'postcode': '3011 AB',
-                'url': 'https://example.com/vacature/3'
-            }
-        ]
+        # Roep de API endpoint aan
+        api_response = api_vacatures_update_view(request)
         
-        # Voeg mock vacatures toe (alleen als ze nog niet bestaan)
-        for vacature_data in mock_vacatures:
-            vacature, created = Vacature.objects.get_or_create(
-                url=vacature_data['url'],
-                defaults=vacature_data
-            )
-            if created:
-                logger.info(f"Mock vacature toegevoegd: {vacature.titel}")
-        
-        messages.success(request, 'Vacatures succesvol bijgewerkt!')
+        if api_response.status_code == 200:
+            data = json.loads(api_response.content)
+            if data.get('success'):
+                stats = data.get('statistieken', {})
+                messages.success(request, 
+                    f'Vacatures bijgewerkt! Toegevoegd: {stats.get("toegevoegd", 0)}, '
+                    f'Bijgewerkt: {stats.get("bijgewerkt", 0)}, '
+                    f'Gedeactiveerd: {stats.get("gedeactiveerd", 0)}'
+                )
+            else:
+                messages.error(request, f'Fout bij updaten: {data.get("error", "Onbekende fout")}')
+        else:
+            messages.error(request, 'Fout bij ophalen vacatures van externe feed')
         
     except Exception as e:
         logger.error(f"Fout bij updaten vacatures: {str(e)}")
@@ -675,5 +658,119 @@ def logout_view(request):
     logout(request)
     messages.info(request, 'Je bent succesvol uitgelogd.')
     return redirect('vector_matching_app:login')
+
+
+@require_http_methods(["POST"])
+@login_required
+def api_vacatures_update_view(request):
+    """API endpoint voor het updaten van vacatures vanuit XML feed."""
+    try:
+        # Haal XML feed op
+        feed_url = "https://noordtalent.nl/werkzoeken-feed.xml"
+        response = requests.get(feed_url, timeout=30)
+        response.raise_for_status()
+        
+        # Parse XML
+        root = ET.fromstring(response.content)
+        
+        # Teller voor statistieken
+        toegevoegd = 0
+        bijgewerkt = 0
+        gedeactiveerd = 0
+        
+        # Verzamel alle externe IDs uit de feed
+        feed_externe_ids = set()
+        
+        # Verwerk elke vacature in de feed
+        for item in root.findall('.//item'):
+            try:
+                # Haal velden op
+                externe_id = item.find('id').text if item.find('id') is not None else None
+                title = item.find('title').text if item.find('title') is not None else ""
+                url = item.find('url').text if item.find('url') is not None else ""
+                company = item.find('company').text if item.find('company') is not None else ""
+                city = item.find('city').text if item.find('city') is not None else ""
+                zipcode = item.find('zipcode').text if item.find('zipcode') is not None else ""
+                description = item.find('description').text if item.find('description') is not None else ""
+                
+                if not externe_id:
+                    continue
+                    
+                feed_externe_ids.add(externe_id)
+                
+                # Probeer vacature te vinden of maak nieuwe aan
+                vacature, created = Vacature.objects.get_or_create(
+                    externe_id=externe_id,
+                    defaults={
+                        'titel': title,
+                        'organisatie': company,
+                        'plaats': city,
+                        'postcode': zipcode,
+                        'url': url,
+                        'beschrijving': description,
+                        'actief': True
+                    }
+                )
+                
+                if created:
+                    toegevoegd += 1
+                    logger.info(f"Vacature toegevoegd: {title} - {company}")
+                else:
+                    # Update bestaande vacature
+                    vacature.titel = title
+                    vacature.organisatie = company
+                    vacature.plaats = city
+                    vacature.postcode = zipcode
+                    vacature.url = url
+                    vacature.beschrijving = description
+                    vacature.actief = True
+                    vacature.save()
+                    bijgewerkt += 1
+                    logger.info(f"Vacature bijgewerkt: {title} - {company}")
+                    
+            except Exception as e:
+                logger.error(f"Fout bij verwerken vacature: {str(e)}")
+                continue
+        
+        # Markeer vacatures die niet meer in de feed staan als inactief
+        inactive_vacatures = Vacature.objects.filter(actief=True).exclude(externe_id__in=feed_externe_ids)
+        for vacature in inactive_vacatures:
+            vacature.actief = False
+            vacature.save()
+            gedeactiveerd += 1
+            logger.info(f"Vacature gedeactiveerd: {vacature.titel} - {vacature.organisatie}")
+        
+        # Retourneer JSON response
+        return JsonResponse({
+            'success': True,
+            'message': 'Vacatures succesvol bijgewerkt',
+            'statistieken': {
+                'toegevoegd': toegevoegd,
+                'bijgewerkt': bijgewerkt,
+                'gedeactiveerd': gedeactiveerd,
+                'totaal_actief': Vacature.objects.filter(actief=True).count()
+            }
+        })
+        
+    except requests.RequestException as e:
+        logger.error(f"Fout bij ophalen XML feed: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Kon XML feed niet ophalen: {str(e)}'
+        }, status=500)
+        
+    except ET.ParseError as e:
+        logger.error(f"Fout bij parsen XML: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Kon XML niet parsen: {str(e)}'
+        }, status=500)
+        
+    except Exception as e:
+        logger.error(f"Onverwachte fout bij updaten vacatures: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Onverwachte fout: {str(e)}'
+        }, status=500)
 
 

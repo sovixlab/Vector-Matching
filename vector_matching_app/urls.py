@@ -20,6 +20,9 @@ urlpatterns = [
     path('vacatures/', views.vacatures_list_view, name='vacatures'),
     path('vacatures/update/', views.vacatures_update_view, name='vacatures_update'),
     
+    # API URLs
+    path('api/vacatures/update/', views.api_vacatures_update_view, name='api_vacatures_update'),
+    
     # Prompt Management URLs
     path('prompts/', views.prompts_list_view, name='prompts'),
     path('prompts/create/', views.prompt_create_view, name='prompt_create'),
