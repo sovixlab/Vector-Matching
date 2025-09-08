@@ -602,7 +602,7 @@ def vacatures_list_view(request):
 @require_http_methods(["POST"])
 @login_required
 def vacatures_update_view(request):
-    """Update vacatures via de API endpoint."""
+    """Update vacatures via de XML feed."""
     try:
         # Verwijder eerst alle demo vacatures (zonder externe_id)
         demo_vacatures = Vacature.objects.filter(externe_id__isnull=True) | Vacature.objects.filter(externe_id="temp")
@@ -611,26 +611,97 @@ def vacatures_update_view(request):
             demo_vacatures.delete()
             logger.info(f"{demo_count} demo vacatures verwijderd")
         
-        # Roep de API endpoint aan
-        api_response = api_vacatures_update_view(request)
+        # Haal XML feed op
+        feed_url = "https://noordtalent.nl/werkzoeken-feed.xml"
+        response = requests.get(feed_url, timeout=30)
+        response.raise_for_status()
         
-        if api_response.status_code == 200:
-            data = json.loads(api_response.content)
-            if data.get('success'):
-                stats = data.get('statistieken', {})
-                messages.success(request, 
-                    f'Vacatures bijgewerkt! Toegevoegd: {stats.get("toegevoegd", 0)}, '
-                    f'Bijgewerkt: {stats.get("bijgewerkt", 0)}, '
-                    f'Gedeactiveerd: {stats.get("gedeactiveerd", 0)}'
+        # Parse XML
+        root = ET.fromstring(response.content)
+        
+        # Teller voor statistieken
+        toegevoegd = 0
+        bijgewerkt = 0
+        gedeactiveerd = 0
+        
+        # Verzamel alle externe IDs uit de feed
+        feed_externe_ids = set()
+        
+        # Verwerk elke vacature in de feed
+        for item in root.findall('.//vacature'):
+            try:
+                # Haal velden op
+                externe_id = item.find('id').text if item.find('id') is not None else None
+                title = item.find('title').text if item.find('title') is not None else ""
+                url = item.find('url').text if item.find('url') is not None else ""
+                company = item.find('company').text if item.find('company') is not None else ""
+                city = item.find('city').text if item.find('city') is not None else ""
+                zipcode = item.find('zipcode').text if item.find('zipcode') is not None else ""
+                description = item.find('description').text if item.find('description') is not None else ""
+                
+                if not externe_id:
+                    continue
+                    
+                feed_externe_ids.add(externe_id)
+                
+                # Probeer vacature te vinden of maak nieuwe aan
+                vacature, created = Vacature.objects.get_or_create(
+                    externe_id=externe_id,
+                    defaults={
+                        'titel': title,
+                        'organisatie': company,
+                        'plaats': city,
+                        'postcode': zipcode,
+                        'url': url,
+                        'beschrijving': description,
+                        'actief': True
+                    }
                 )
-            else:
-                messages.error(request, f'Fout bij updaten: {data.get("error", "Onbekende fout")}')
-        else:
-            messages.error(request, 'Fout bij ophalen vacatures van externe feed')
+                
+                if created:
+                    toegevoegd += 1
+                    logger.info(f"Vacature toegevoegd: {title} - {company}")
+                else:
+                    # Update bestaande vacature
+                    vacature.titel = title
+                    vacature.organisatie = company
+                    vacature.plaats = city
+                    vacature.postcode = zipcode
+                    vacature.url = url
+                    vacature.beschrijving = description
+                    vacature.actief = True
+                    vacature.save()
+                    bijgewerkt += 1
+                    logger.info(f"Vacature bijgewerkt: {title} - {company}")
+                    
+            except Exception as e:
+                logger.error(f"Fout bij verwerken vacature: {str(e)}")
+                continue
         
+        # Markeer vacatures die niet meer in de feed staan als inactief
+        inactive_vacatures = Vacature.objects.filter(actief=True).exclude(externe_id__in=feed_externe_ids)
+        for vacature in inactive_vacatures:
+            vacature.actief = False
+            vacature.save()
+            gedeactiveerd += 1
+            logger.info(f"Vacature gedeactiveerd: {vacature.titel} - {vacature.organisatie}")
+        
+        # Toon success message
+        messages.success(request, 
+            f'Vacatures bijgewerkt! Toegevoegd: {toegevoegd}, '
+            f'Bijgewerkt: {bijgewerkt}, '
+            f'Gedeactiveerd: {gedeactiveerd}'
+        )
+        
+    except requests.RequestException as e:
+        logger.error(f"Fout bij ophalen XML feed: {str(e)}")
+        messages.error(request, f'Kon XML feed niet ophalen: {str(e)}')
+    except ET.ParseError as e:
+        logger.error(f"Fout bij parsen XML: {str(e)}")
+        messages.error(request, f'Kon XML niet parsen: {str(e)}')
     except Exception as e:
-        logger.error(f"Fout bij updaten vacatures: {str(e)}")
-        messages.error(request, f'Fout bij updaten vacatures: {str(e)}')
+        logger.error(f"Onverwachte fout bij updaten vacatures: {str(e)}")
+        messages.error(request, f'Onverwachte fout: {str(e)}')
     
     return redirect('vector_matching_app:vacatures')
 
