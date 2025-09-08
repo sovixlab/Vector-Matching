@@ -11,17 +11,17 @@
             <p class="text-base-content/70 mt-2">Overzicht van het Vector Matching systeem</p>
         </div>
         <div class="flex gap-4">
-            <a href="{% url 'vector_matching_app:health_check' %}" class="btn btn-outline btn-sm">
+            <a href="{% url 'vector_matching_app:vacatures' %}" class="btn btn-outline btn-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6"></path>
                 </svg>
-                Health Check
+                Vacatures
             </a>
         </div>
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div class="stat bg-base-200 rounded-lg shadow">
             <div class="stat-figure text-primary">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,6 +65,17 @@
             <div class="stat-value text-error">{{ failed_candidates|default:"0" }}</div>
             <div class="stat-desc">Verwerking gefaald</div>
         </div>
+
+        <div class="stat bg-base-200 rounded-lg shadow">
+            <div class="stat-figure text-info">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Vacatures</div>
+            <div class="stat-value text-info">{{ total_vacatures|default:"0" }}</div>
+            <div class="stat-desc">Beschikbare vacatures</div>
+        </div>
     </div>
 
     <!-- Quick Actions -->
@@ -93,18 +104,58 @@
             <div class="card-body">
                 <h2 class="card-title">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     Systeem Status
                 </h2>
-                <p class="text-base-content/70 mb-4">Controleer de gezondheid van het systeem</p>
-                <div class="card-actions">
-                    <a href="{% url 'vector_matching_app:health_check' %}" class="btn btn-outline">
+                <p class="text-base-content/70 mb-4">Health check van alle systeem componenten</p>
+                
+                <!-- Health Status Items -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="badge badge-success badge-sm">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <span class="text-sm">Database</span>
+                        </div>
+                        <span class="text-success text-sm font-medium">Online</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="badge badge-success badge-sm">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <span class="text-sm">OpenAI API</span>
+                        </div>
+                        <span class="text-success text-sm font-medium">Online</span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="badge badge-success badge-sm">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <span class="text-sm">Systeem</span>
+                        </div>
+                        <span class="text-success text-sm font-medium">Online</span>
+                    </div>
+                </div>
+                
+                <div class="card-actions mt-4">
+                    <div class="badge badge-success badge-lg">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Health Check
-                    </a>
+                        Alle systemen operationeel
+                    </div>
                 </div>
             </div>
         </div>

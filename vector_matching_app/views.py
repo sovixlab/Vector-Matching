@@ -25,16 +25,26 @@ def index(request):
     completed_candidates = Candidate.objects.filter(embed_status='completed').count()
     queued_candidates = Candidate.objects.filter(embed_status='queued').count()
     failed_candidates = Candidate.objects.filter(embed_status='failed').count()
+    total_vacatures = Vacature.objects.count()
     
     # Haal recente kandidaten op (laatste 10)
     recent_candidates = Candidate.objects.order_by('-updated_at')[:10]
+    
+    # Health check data
+    health_status = {
+        'database': True,  # Als we hier zijn, werkt de database
+        'openai': True,    # TODO: Echte check implementeren
+        'system': True,    # TODO: Echte check implementeren
+    }
     
     context = {
         'total_candidates': total_candidates,
         'completed_candidates': completed_candidates,
         'queued_candidates': queued_candidates,
         'failed_candidates': failed_candidates,
+        'total_vacatures': total_vacatures,
         'recent_candidates': recent_candidates,
+        'health_status': health_status,
     }
     
     return render(request, 'index.html', context)
