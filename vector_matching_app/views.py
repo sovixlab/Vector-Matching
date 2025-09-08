@@ -200,16 +200,16 @@ def kandidaat_detail_view(request, candidate_id):
 @require_http_methods(["POST"])
 @login_required
 def kandidaat_reprocess_view(request, candidate_id):
-    """Herstart de verwerkingspipeline voor een kandidaat."""
+    """Herstart de embedding voor een kandidaat."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
         
-        # Start herverwerking (synchroon)
+        # Start opnieuw embedden (synchroon)
         try:
             reprocess_candidate(candidate_id)
-            messages.success(request, f'Herverwerking voltooid voor {candidate.name or f"kandidaat {candidate_id}"}')
+            messages.success(request, f'Opnieuw embedden voltooid voor {candidate.name or f"kandidaat {candidate_id}"}')
         except Exception as e:
-            messages.error(request, f'Fout bij herverwerking: {str(e)}')
+            messages.error(request, f'Fout bij opnieuw embedden: {str(e)}')
             
     except Candidate.DoesNotExist:
         messages.error(request, 'Kandidaat niet gevonden.')
@@ -347,6 +347,65 @@ def kandidaten_bulk_delete_view(request):
             
     except Exception as e:
         messages.error(request, f'Fout bij bulk verwijderen: {str(e)}')
+    
+    return redirect('vector_matching_app:kandidaten')
+
+
+@require_http_methods(["POST"])
+@login_required
+def kandidaten_bulk_reprocess_view(request):
+    """Herstart de embedding voor meerdere kandidaten tegelijk."""
+    try:
+        candidate_ids = request.POST.getlist('candidate_ids')
+        
+        if not candidate_ids:
+            messages.warning(request, 'Geen kandidaten geselecteerd.')
+            return redirect('vector_matching_app:kandidaten')
+        
+        processed_count = 0
+        failed_count = 0
+        failed_candidates = []
+        
+        for candidate_id in candidate_ids:
+            try:
+                candidate = Candidate.objects.get(id=candidate_id)
+                
+                # Controleer of CV tekst beschikbaar is
+                if not candidate.cv_text:
+                    failed_count += 1
+                    failed_candidates.append(f"{candidate.name or f'Kandidaat {candidate_id}'}: Geen CV tekst")
+                    continue
+                
+                # Start opnieuw embedden
+                reprocess_candidate(candidate_id)
+                processed_count += 1
+                
+                # Korte pauze tussen kandidaten
+                import time
+                time.sleep(0.5)
+                
+            except Candidate.DoesNotExist:
+                failed_count += 1
+                failed_candidates.append(f"Kandidaat {candidate_id}: Niet gevonden")
+                continue
+            except Exception as e:
+                failed_count += 1
+                candidate_name = candidate.name if 'candidate' in locals() else f"Kandidaat {candidate_id}"
+                failed_candidates.append(f"{candidate_name}: {str(e)}")
+                continue
+        
+        # Toon resultaten
+        if processed_count > 0:
+            messages.success(request, f'{processed_count} kandidaat(en) succesvol opnieuw geëmbedded.')
+        
+        if failed_count > 0:
+            error_msg = f'{failed_count} kandidaat(en) gefaald: ' + '; '.join(failed_candidates[:3])
+            if len(failed_candidates) > 3:
+                error_msg += f' (en {len(failed_candidates) - 3} meer)'
+            messages.error(request, error_msg)
+            
+    except Exception as e:
+        messages.error(request, f'Fout bij bulk opnieuw embedden: {str(e)}')
     
     return redirect('vector_matching_app:kandidaten')
 

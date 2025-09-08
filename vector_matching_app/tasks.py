@@ -412,24 +412,24 @@ def reprocess_candidate(candidate_id):
     """Herstart alleen de profiel samenvatting en embedding voor een kandidaat."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
-        candidate.update_status('processing', 'Opnieuw verwerken')
+        candidate.update_status('processing', 'Opnieuw embedden')
         candidate.error_message = ''
         candidate.save(update_fields=['embed_status', 'processing_step', 'error_message', 'updated_at'])
         
         # Controleer of CV tekst beschikbaar is
         if not candidate.cv_text:
-            raise ValueError("Geen CV tekst gevonden - kan niet opnieuw verwerken")
+            raise ValueError("Geen CV tekst gevonden - kan niet opnieuw embedden")
         
         # Alleen profiel samenvatting en embedding opnieuw genereren
         generate_profile_summary_text(candidate_id)
         embed_profile_text(candidate_id)
         
-        candidate.update_status('completed', 'Opnieuw verwerken voltooid')
-        logger.info(f"Herverwerking voltooid voor kandidaat {candidate_id}")
+        candidate.update_status('completed', 'Opnieuw embedden voltooid')
+        logger.info(f"Opnieuw embedden voltooid voor kandidaat {candidate_id}")
         return True
         
     except Exception as e:
-        logger.error(f"Fout bij herverwerking voor kandidaat {candidate_id}: {str(e)}")
+        logger.error(f"Fout bij opnieuw embedden voor kandidaat {candidate_id}: {str(e)}")
         candidate = Candidate.objects.get(id=candidate_id)
-        candidate.update_status('failed', 'Herverwerking mislukt', str(e))
+        candidate.update_status('failed', 'Opnieuw embedden mislukt', str(e))
         raise
