@@ -121,7 +121,7 @@ class Prompt(models.Model):
         ('custom', 'Aangepast'),
     ]
     
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     prompt_type = models.CharField(max_length=20, choices=PROMPT_TYPES)
     content = models.TextField()
     version = models.PositiveIntegerField(default=1)
