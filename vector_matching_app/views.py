@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from .models import Candidate, Prompt, PromptLog
+from .models import Candidate, Prompt, PromptLog, Vacature
 from .tasks import process_candidate_pipeline, reprocess_candidate
 import json
 import os
@@ -571,6 +571,68 @@ def prompt_logs_view(request):
     """Overzicht van alle prompt logs."""
     logs = PromptLog.objects.all().order_by('-timestamp')[:100]
     return render(request, 'prompt_logs.html', {'logs': logs})
+
+
+# Vacature Management Views
+@login_required
+def vacatures_list_view(request):
+    """Overzicht van alle vacatures."""
+    vacatures = Vacature.objects.all()
+    total_count = vacatures.count()
+    
+    return render(request, 'vacatures.html', {
+        'vacatures': vacatures,
+        'total_count': total_count
+    })
+
+
+@require_http_methods(["POST"])
+@login_required
+def vacatures_update_view(request):
+    """Update vacatures (placeholder voor toekomstige API integratie)."""
+    try:
+        # TODO: Implementeer API call naar vacature bron
+        # Voor nu: mock data toevoegen
+        mock_vacatures = [
+            {
+                'titel': 'Senior Python Developer',
+                'organisatie': 'TechCorp BV',
+                'plaats': 'Amsterdam',
+                'postcode': '1012 AB',
+                'url': 'https://example.com/vacature/1'
+            },
+            {
+                'titel': 'Data Scientist',
+                'organisatie': 'DataFlow Inc',
+                'plaats': 'Utrecht',
+                'postcode': '3511 AB',
+                'url': 'https://example.com/vacature/2'
+            },
+            {
+                'titel': 'Frontend Developer',
+                'organisatie': 'WebStudio',
+                'plaats': 'Rotterdam',
+                'postcode': '3011 AB',
+                'url': 'https://example.com/vacature/3'
+            }
+        ]
+        
+        # Voeg mock vacatures toe (alleen als ze nog niet bestaan)
+        for vacature_data in mock_vacatures:
+            vacature, created = Vacature.objects.get_or_create(
+                url=vacature_data['url'],
+                defaults=vacature_data
+            )
+            if created:
+                logger.info(f"Mock vacature toegevoegd: {vacature.titel}")
+        
+        messages.success(request, 'Vacatures succesvol bijgewerkt!')
+        
+    except Exception as e:
+        logger.error(f"Fout bij updaten vacatures: {str(e)}")
+        messages.error(request, f'Fout bij updaten vacatures: {str(e)}')
+    
+    return redirect('vector_matching_app:vacatures')
 
 
 # Authentication Views

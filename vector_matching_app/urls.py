@@ -16,6 +16,10 @@ urlpatterns = [
     path('kandidaten/bulk-delete/', views.kandidaten_bulk_delete_view, name='kandidaten_bulk_delete'),
     path('kandidaten/bulk-reprocess/', views.kandidaten_bulk_reprocess_view, name='kandidaten_bulk_reprocess'),
     
+    # Vacature Management URLs
+    path('vacatures/', views.vacatures_list_view, name='vacatures'),
+    path('vacatures/update/', views.vacatures_update_view, name='vacatures_update'),
+    
     # Prompt Management URLs
     path('prompts/', views.prompts_list_view, name='prompts'),
     path('prompts/create/', views.prompt_create_view, name='prompt_create'),

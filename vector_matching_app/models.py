@@ -112,6 +112,24 @@ class Candidate(models.Model):
         self.save(update_fields=['embed_status', 'processing_step', 'error_message', 'updated_at'])
 
 
+class Vacature(models.Model):
+    """Model voor vacatures."""
+    
+    titel = models.CharField(max_length=255)
+    organisatie = models.CharField(max_length=255)
+    plaats = models.CharField(max_length=100)
+    postcode = models.CharField(max_length=10)
+    url = models.URLField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.titel} - {self.organisatie}"
+
+
 class Prompt(models.Model):
     """Model voor embedding prompts met versiegeschiedenis."""
     

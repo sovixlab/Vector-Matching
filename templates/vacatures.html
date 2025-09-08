@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vacatures - Vector Matching{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-base-content">Vacatures</h1>
+        <form method="post" action="{% url 'vector_matching_app:vacatures_update' %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Vacatures updaten
+            </button>
+        </form>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-2">
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Vacatures Table -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6"></path>
+                </svg>
+                Vacatures overzicht ({{ total_count }})
+            </h2>
+            
+            {% if vacatures %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th class="text-base-content">Titel</th>
+                                <th class="text-base-content">Organisatie</th>
+                                <th class="text-base-content">Plaats</th>
+                                <th class="text-base-content">Postcode</th>
+                                <th class="text-base-content">URL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vacature in vacatures %}
+                            <tr>
+                                <td class="text-base-content">
+                                    <div class="font-medium">{{ vacature.titel }}</div>
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ vacature.organisatie }}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ vacature.plaats }}
+                                </td>
+                                <td class="text-base-content/70">
+                                    {{ vacature.postcode }}
+                                </td>
+                                <td>
+                                    <a href="{{ vacature.url }}" target="_blank" rel="noopener noreferrer" 
+                                       class="link link-primary hover:link-hover">
+                                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                        </svg>
+                                        Bekijk vacature
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 mx-auto text-base-content/30 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6"></path>
+                    </svg>
+                    <h3 class="text-xl font-medium text-base-content mb-2">Geen vacatures gevonden</h3>
+                    <p class="text-base-content/60 mb-4">Er zijn nog geen vacatures beschikbaar.</p>
+                    <form method="post" action="{% url 'vector_matching_app:vacatures_update' %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Eerste vacatures ophalen
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update button click handler
+    const updateButton = document.querySelector('button[type="submit"]');
+    if (updateButton) {
+        updateButton.addEventListener('click', function(e) {
+            // Show loading state
+            const originalText = this.innerHTML;
+            this.innerHTML = `
+                <div class="loading loading-spinner loading-sm"></div>
+                Updaten...
+            `;
+            this.disabled = true;
+            
+            // Re-enable after 3 seconds (fallback)
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.disabled = false;
+            }, 3000);
+        });
+    }
+});
+</script>
+{% endblock %}
