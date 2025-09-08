@@ -57,7 +57,10 @@
                             {% for vacature in vacatures %}
                             <tr>
                                 <td class="text-base-content">
-                                    <div class="font-medium">{{ vacature.titel }}</div>
+                                    <a href="{% url 'vector_matching_app:vacature_detail' vacature.id %}" 
+                                       class="font-medium link link-primary hover:link-hover">
+                                        {{ vacature.titel }}
+                                    </a>
                                 </td>
                                 <td class="text-base-content/70">
                                     {{ vacature.organisatie }}

@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ vacature.titel }} - Vacature Detail{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header met terug knop -->
+    <div class="flex items-center gap-4 mb-8">
+        <a href="{% url 'vector_matching_app:vacatures' %}" class="btn btn-outline btn-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Terug naar overzicht
+        </a>
+        <div>
+            <h1 class="text-4xl font-bold text-base-content">{{ vacature.titel }}</h1>
+            <p class="text-base-content/70 mt-2">{{ vacature.organisatie }}</p>
+        </div>
+    </div>
+
+    <!-- Status badges -->
+    <div class="flex gap-4 mb-8">
+        {% if vacature.actief %}
+            <span class="badge badge-success">Actief</span>
+        {% else %}
+            <span class="badge badge-error">Inactief</span>
+        {% endif %}
+        
+        {% if vacature.has_samenvatting %}
+            <span class="badge badge-info">Samenvatting beschikbaar</span>
+        {% else %}
+            <span class="badge badge-warning">Geen samenvatting</span>
+        {% endif %}
+        
+        {% if vacature.embedding_status == "gegenereerd" %}
+            <span class="badge badge-success">Embedding gegenereerd</span>
+        {% else %}
+            <span class="badge badge-warning">Embedding nog niet gegenereerd</span>
+        {% endif %}
+    </div>
+
+    <!-- Vacature informatie -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Hoofdinhoud -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Basis informatie -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Vacature Informatie
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="label">
+                                <span class="label-text font-semibold">Organisatie</span>
+                            </label>
+                            <p class="text-base-content">{{ vacature.organisatie }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="label">
+                                <span class="label-text font-semibold">Locatie</span>
+                            </label>
+                            <p class="text-base-content">{{ vacature.plaats }}, {{ vacature.postcode }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="label">
+                                <span class="label-text font-semibold">Externe ID</span>
+                            </label>
+                            <p class="text-base-content/70 font-mono">{{ vacature.externe_id }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="label">
+                                <span class="label-text font-semibold">Toegevoegd</span>
+                            </label>
+                            <p class="text-base-content/70">{{ vacature.created_at|date:"d-m-Y H:i" }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="label">
+                            <span class="label-text font-semibold">Originele Vacature</span>
+                        </label>
+                        <a href="{{ vacature.url }}" target="_blank" rel="noopener noreferrer" 
+                           class="btn btn-primary btn-outline">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                            Bekijk op Noordtalent
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beschrijving -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Vacature Beschrijving
+                    </h2>
+                    
+                    {% if vacature.beschrijving %}
+                        <div class="prose prose-lg max-w-none">
+                            {{ vacature.beschrijving|safe }}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8 text-base-content/50">
+                            <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p>Geen beschrijving beschikbaar</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- AI Samenvatting -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        AI Samenvatting
+                    </h2>
+                    
+                    {% if vacature.has_samenvatting %}
+                        <div class="prose prose-sm max-w-none">
+                            {{ vacature.samenvatting|linebreaks }}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-6 text-base-content/50">
+                            <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                            <p class="text-sm">Geen samenvatting beschikbaar</p>
+                            <p class="text-xs mt-2">Later kunnen we hier een knop toevoegen om een samenvatting te genereren</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Embedding Status -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Embedding Status
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm">Status:</span>
+                            {% if vacature.embedding_status == "gegenereerd" %}
+                                <span class="badge badge-success">Gegenereerd</span>
+                            {% else %}
+                                <span class="badge badge-warning">Nog niet gegenereerd</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if vacature.embedding_status == "gegenereerd" %}
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm">Vector dimensies:</span>
+                                <span class="text-sm font-mono">{{ vacature.embedding|length }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="text-xs text-base-content/50 mt-4">
+                            <p>Later kunnen we hier knoppen toevoegen om:</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li>Handmatig een samenvatting te genereren</li>
+                                <li>Handmatig een embedding te maken</li>
+                                <li>De vacature te matchen met kandidaten</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Metadata
+                    </h2>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-base-content/70">Gemaakt:</span>
+                            <span>{{ vacature.created_at|date:"d-m-Y H:i" }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-base-content/70">Bijgewerkt:</span>
+                            <span>{{ vacature.updated_at|date:"d-m-Y H:i" }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-base-content/70">ID:</span>
+                            <span class="font-mono">{{ vacature.id }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

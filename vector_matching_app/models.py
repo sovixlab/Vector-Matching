@@ -122,6 +122,8 @@ class Vacature(models.Model):
     postcode = models.CharField(max_length=10)
     url = models.URLField()
     beschrijving = models.TextField(blank=True, help_text="Vacature beschrijving")
+    samenvatting = models.TextField(blank=True, help_text="AI gegenereerde samenvatting")
+    embedding = models.JSONField(null=True, blank=True, help_text="Vector embedding voor matching")
     actief = models.BooleanField(default=True, help_text="Of de vacature nog actief is")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -131,6 +133,18 @@ class Vacature(models.Model):
     
     def __str__(self):
         return f"{self.titel} - {self.organisatie}"
+    
+    @property
+    def embedding_status(self):
+        """Geeft de status van de embedding terug."""
+        if self.embedding and len(self.embedding) > 0:
+            return "gegenereerd"
+        return "nog niet gegenereerd"
+    
+    @property
+    def has_samenvatting(self):
+        """Geeft terug of er een samenvatting is."""
+        return bool(self.samenvatting and self.samenvatting.strip())
 
 
 class Prompt(models.Model):

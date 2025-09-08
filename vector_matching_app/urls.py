@@ -18,6 +18,7 @@ urlpatterns = [
     
     # Vacature Management URLs
     path('vacatures/', views.vacatures_list_view, name='vacatures'),
+    path('vacatures/<int:vacature_id>/', views.vacature_detail_view, name='vacature_detail'),
     path('vacatures/update/', views.vacatures_update_view, name='vacatures_update'),
     
     # API URLs

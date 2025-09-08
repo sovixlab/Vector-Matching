@@ -706,6 +706,16 @@ def vacatures_update_view(request):
     return redirect('vector_matching_app:vacatures')
 
 
+@login_required
+def vacature_detail_view(request, vacature_id):
+    """Detail pagina voor een specifieke vacature."""
+    vacature = get_object_or_404(Vacature, id=vacature_id)
+    
+    return render(request, 'vacature_detail.html', {
+        'vacature': vacature
+    })
+
+
 # Authentication Views
 def login_view(request):
     """Login pagina."""
