@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vector_matching_app', '0008_add_vacature_model'),
+        ('vector_matching_app', '0009_cleanup_demo_vacatures'),
     ]
 
     operations = [
