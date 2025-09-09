@@ -810,7 +810,7 @@ def vacatures_bulk_reprocess_view(request):
             messages.error(request, 'Geen geldige vacatures gevonden.')
             return redirect('vector_matching_app:vacatures')
         
-        from .tasks import reprocess_vacature_embedding
+        from .tasks import generate_vacature_summary, generate_vacature_embedding
         import time
         
         success_count = 0
@@ -820,9 +820,18 @@ def vacatures_bulk_reprocess_view(request):
         
         for vacature in vacatures:
             try:
-                reprocess_vacature_embedding(vacature.id)
+                logger.info(f"Start herverwerking vacature {vacature.id}: {vacature.titel}")
+                
+                # Stap 1: Genereer nieuwe samenvatting
+                generate_vacature_summary(vacature.id)
+                
+                # Stap 2: Genereer nieuwe embedding
+                generate_vacature_embedding(vacature.id)
+                
                 success_count += 1
                 success_list.append(vacature.titel)
+                logger.info(f"Vacature {vacature.id} succesvol herverwerkt")
+                
                 time.sleep(0.5)  # Korte pauze tussen requests
             except Exception as e:
                 logger.error(f"Fout bij herverwerken vacature {vacature.id}: {str(e)}")

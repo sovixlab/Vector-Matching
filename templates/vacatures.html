@@ -331,6 +331,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Hide any existing progress bars
+        document.getElementById('update-progress').classList.add('hidden');
+        
         // Show bulk reprocess progress UI
         showBulkReprocessProgressUI(ids.length);
         
@@ -397,9 +400,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function bulkReprocessVacaturesAjax(vacatureIds) {
+        console.log('Starting bulk reprocess for vacatures:', vacatureIds);
+        
         const formData = new FormData();
         formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
         formData.append('vacature_ids', vacatureIds.join(','));
+        
+        // Show initial progress
+        updateBulkReprocessProgress(0, vacatureIds.length, [], [], []);
         
         fetch('{% url "vector_matching_app:vacatures_bulk_reprocess" %}', {
             method: 'POST',
@@ -408,8 +416,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
                 updateBulkReprocessProgress(
                     data.processed, 
@@ -424,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     hideBulkReprocessProgress();
                     // Reload page to show updated data
                     window.location.reload();
-                }, 2000);
+                }, 3000);
             } else {
                 alert('Fout bij bulk reprocess: ' + (data.error || 'Onbekende fout'));
                 hideBulkReprocessProgress();
