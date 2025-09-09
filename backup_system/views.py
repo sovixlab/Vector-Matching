@@ -36,14 +36,19 @@ def create_backup_sync(backup):
             # Bestanden backup
             if backup.backup_type in ['full', 'files']:
                 files_backup_path = os.path.join(temp_dir, 'media_files')
-                create_files_backup(files_backup_path)
                 
-                # Controleer of er bestanden zijn gekopieerd
-                if os.path.exists(files_backup_path) and os.listdir(files_backup_path):
+                # Probeer eerst via database
+                if create_files_backup_from_database(files_backup_path):
                     backup_files.append(files_backup_path)
-                    logger.info(f"Media files backup created successfully: {files_backup_path}")
+                    logger.info(f"Media files backup created successfully from database: {files_backup_path}")
                 else:
-                    logger.warning("No media files found to backup")
+                    # Fallback naar normale methode
+                    create_files_backup(files_backup_path)
+                    if os.path.exists(files_backup_path) and os.listdir(files_backup_path):
+                        backup_files.append(files_backup_path)
+                        logger.info(f"Media files backup created successfully: {files_backup_path}")
+                    else:
+                        logger.warning("No media files found to backup")
             
             # Maak ZIP bestand
             zip_path = create_backup_zip(backup_files, temp_dir, backup.name)
@@ -102,6 +107,59 @@ def create_database_backup(output_path):
         db_path = db_settings['NAME']
         import shutil
         shutil.copy2(db_path, output_path)
+
+
+def create_files_backup_from_database(output_path):
+    """Maak backup van bestanden direct via database."""
+    try:
+        from vector_matching_app.models import Candidate
+        candidates = Candidate.objects.exclude(cv_pdf='')
+        
+        if not candidates.exists():
+            logger.info("No candidates with CV files found in database")
+            return False
+        
+        logger.info(f"Found {candidates.count()} candidates with CV files in database")
+        
+        # Maak directory structuur
+        os.makedirs(output_path, exist_ok=True)
+        cv_dir = os.path.join(output_path, 'cv_files')
+        os.makedirs(cv_dir, exist_ok=True)
+        
+        # Kopieer bestanden
+        copied_count = 0
+        for candidate in candidates:
+            if candidate.cv_pdf:
+                try:
+                    # Gebruik Django's file handling
+                    if hasattr(candidate.cv_pdf, 'path'):
+                        source_path = candidate.cv_pdf.path
+                    else:
+                        # Probeer via URL
+                        source_path = os.path.join(settings.MEDIA_ROOT, str(candidate.cv_pdf))
+                    
+                    if os.path.exists(source_path):
+                        filename = os.path.basename(source_path)
+                        # Voeg candidate ID toe aan filename voor uniekheid
+                        name, ext = os.path.splitext(filename)
+                        filename = f"{candidate.id}_{name}{ext}"
+                        dest_path = os.path.join(cv_dir, filename)
+                        
+                        import shutil
+                        shutil.copy2(source_path, dest_path)
+                        copied_count += 1
+                        logger.info(f"Copied CV: {filename} (candidate {candidate.id})")
+                    else:
+                        logger.warning(f"CV file not found for candidate {candidate.id}: {source_path}")
+                except Exception as e:
+                    logger.error(f"Error copying CV for candidate {candidate.id}: {e}")
+        
+        logger.info(f"Successfully copied {copied_count} CV files from database")
+        return copied_count > 0
+        
+    except Exception as e:
+        logger.error(f"Error in create_files_backup_from_database: {e}")
+        return False
 
 
 def create_files_backup(output_path):
