@@ -311,15 +311,48 @@ document.addEventListener('DOMContentLoaded', function() {
             const maxAttempts = 50; // 5 seconden max
             
             const checkToken = () => {
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                // Eerst proberen globale CSRF token
+                if (window.csrfToken) {
+                    console.log('Globale CSRF token gevonden:', window.csrfToken.substring(0, 10) + '...');
+                    // Maak een dummy element voor consistentie
+                    const dummyElement = {
+                        value: window.csrfToken
+                    };
+                    resolve(dummyElement);
+                    return;
+                }
+                
+                // Zoek naar CSRF token in alle mogelijke locaties
+                let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                
+                // Als niet gevonden, probeer andere selectors
+                if (!csrfToken) {
+                    csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                }
+                
+                // Als nog steeds niet gevonden, zoek in alle forms
+                if (!csrfToken) {
+                    const forms = document.querySelectorAll('form');
+                    for (let form of forms) {
+                        csrfToken = form.querySelector('[name=csrfmiddlewaretoken]');
+                        if (csrfToken) break;
+                    }
+                }
+                
                 if (csrfToken && csrfToken.value) {
                     console.log('CSRF token gevonden na', attempts * 100, 'ms');
+                    console.log('CSRF token element:', csrfToken);
+                    console.log('CSRF token value:', csrfToken.value.substring(0, 10) + '...');
                     resolve(csrfToken);
                 } else if (attempts < maxAttempts) {
                     attempts++;
+                    console.log('CSRF token poging', attempts, 'van', maxAttempts);
                     setTimeout(checkToken, 100);
                 } else {
                     console.error('CSRF token niet gevonden na', maxAttempts * 100, 'ms');
+                    console.log('Globale CSRF token:', window.csrfToken);
+                    console.log('Alle forms:', document.querySelectorAll('form'));
+                    console.log('Alle inputs:', document.querySelectorAll('input'));
                     reject(new Error('CSRF token not found'));
                 }
             };
