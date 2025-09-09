@@ -111,11 +111,40 @@ def create_files_backup(output_path):
     logger.info(f"Creating files backup from: {media_root}")
     logger.info(f"Media root exists: {os.path.exists(media_root)}")
     
-    if os.path.exists(media_root):
+    # Maak media directory aan als deze niet bestaat
+    if not os.path.exists(media_root):
+        logger.info(f"Creating media directory: {media_root}")
+        os.makedirs(media_root, exist_ok=True)
+    
+    # Zoek naar bestaande bestanden in verschillende locaties
+    possible_media_paths = [
+        media_root,
+        os.path.join(settings.BASE_DIR, 'media'),
+        '/opt/render/project/src/media',
+        '/app/media',
+        os.path.join(os.path.dirname(settings.BASE_DIR), 'media')
+    ]
+    
+    actual_media_path = None
+    for path in possible_media_paths:
+        if os.path.exists(path):
+            logger.info(f"Found media directory at: {path}")
+            # Controleer of er bestanden in staan
+            has_files = False
+            for root, dirs, files in os.walk(path):
+                if files:
+                    has_files = True
+                    break
+            if has_files:
+                actual_media_path = path
+                break
+    
+    if actual_media_path:
+        logger.info(f"Using media directory: {actual_media_path}")
         # Debug: toon wat er in de media directory staat
         logger.info("Contents of media directory:")
-        for root, dirs, files in os.walk(media_root):
-            level = root.replace(media_root, '').count(os.sep)
+        for root, dirs, files in os.walk(actual_media_path):
+            level = root.replace(actual_media_path, '').count(os.sep)
             indent = ' ' * 2 * level
             logger.info(f"{indent}{os.path.basename(root)}/")
             subindent = ' ' * 2 * (level + 1)
@@ -125,7 +154,7 @@ def create_files_backup(output_path):
         import shutil
         try:
             # Kopieer de hele media directory
-            shutil.copytree(media_root, output_path)
+            shutil.copytree(actual_media_path, output_path)
             logger.info(f"Successfully copied media files to: {output_path}")
             
             # Log wat er gekopieerd is
@@ -144,7 +173,42 @@ def create_files_backup(output_path):
             # Maak lege directory als kopiëren mislukt
             os.makedirs(output_path, exist_ok=True)
     else:
-        logger.warning(f"Media root does not exist: {media_root}")
+        logger.warning("No media directory with files found")
+        
+        # Probeer bestanden te vinden via de database
+        try:
+            from vector_matching_app.models import Candidate
+            candidates = Candidate.objects.exclude(cv_pdf='')
+            if candidates.exists():
+                logger.info(f"Found {candidates.count()} candidates with CV files in database")
+                
+                # Maak directory structuur
+                os.makedirs(output_path, exist_ok=True)
+                cv_dir = os.path.join(output_path, 'cv_files')
+                os.makedirs(cv_dir, exist_ok=True)
+                
+                # Kopieer bestanden
+                copied_count = 0
+                for candidate in candidates:
+                    if candidate.cv_pdf and hasattr(candidate.cv_pdf, 'path'):
+                        try:
+                            source_path = candidate.cv_pdf.path
+                            if os.path.exists(source_path):
+                                filename = os.path.basename(source_path)
+                                dest_path = os.path.join(cv_dir, filename)
+                                import shutil
+                                shutil.copy2(source_path, dest_path)
+                                copied_count += 1
+                                logger.info(f"Copied CV: {filename}")
+                        except Exception as e:
+                            logger.error(f"Error copying CV for candidate {candidate.id}: {e}")
+                
+                logger.info(f"Successfully copied {copied_count} CV files")
+            else:
+                logger.info("No candidates with CV files found in database")
+        except Exception as e:
+            logger.error(f"Error searching for CV files in database: {e}")
+        
         # Maak lege directory als media root niet bestaat
         os.makedirs(output_path, exist_ok=True)
 
