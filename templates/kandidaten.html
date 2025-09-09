@@ -71,6 +71,11 @@
         </div>
     </div>
 
+    <!-- NIEUWE UPLOAD SECTIE -->
+    <div id="new-upload-section" class="hidden mb-8">
+        <!-- Wordt dynamisch ingevuld -->
+    </div>
+
     <!-- BULK REPROCESS PROGRESS -->
     <div id="bulk-reprocess-progress" class="hidden mb-8">
         <div class="card bg-base-100 shadow-xl">
@@ -443,6 +448,113 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function startLiveProgress(totalFiles) {
+        console.log('Start live progress voor', totalFiles, 'bestanden');
+        
+        // Reset progress
+        updateProgress(0, totalFiles, [], [], []);
+        
+        // Simuleer progress tijdens upload
+        let currentProgress = 0;
+        const progressInterval = setInterval(() => {
+            currentProgress += Math.random() * 3; // Random progress tussen 0-3%
+            if (currentProgress > 95) currentProgress = 95; // Max 95% tijdens upload
+            
+            const progressText = document.getElementById('progress-text');
+            if (progressText) {
+                progressText.textContent = `Uploaden van ${totalFiles} bestanden... ${Math.round(currentProgress)}%`;
+            }
+            
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar) {
+                progressBar.value = currentProgress;
+            }
+            
+            const progressPercentage = document.getElementById('progress-percentage');
+            if (progressPercentage) {
+                progressPercentage.textContent = `${Math.round(currentProgress)}%`;
+            }
+        }, 200);
+        
+        // Stop interval na 10 seconden (fallback)
+        setTimeout(() => {
+            clearInterval(progressInterval);
+        }, 10000);
+        
+        // Store interval ID for cleanup
+        window.progressInterval = progressInterval;
+    }
+    
+    function finalizeProgress(totalFiles, created, skipped, errors) {
+        console.log('Finaliseer progress:', {totalFiles, created: created.length, skipped: skipped.length, errors: errors.length});
+        
+        // Stop progress interval
+        if (window.progressInterval) {
+            clearInterval(window.progressInterval);
+            window.progressInterval = null;
+        }
+        
+        // Update naar 100%
+        updateProgress(totalFiles, totalFiles, created, skipped, errors);
+        
+        // Update progress text
+        const progressText = document.getElementById('progress-text');
+        if (progressText) {
+            progressText.textContent = `Upload voltooid: ${totalFiles} bestanden verwerkt`;
+        }
+        
+        // Toon "Nieuwe upload" knop
+        showNewUploadButton();
+    }
+    
+    function showNewUploadButton() {
+        // Verberg progress sectie
+        const progressDiv = document.getElementById('upload-progress');
+        if (progressDiv) {
+            progressDiv.classList.add('hidden');
+        }
+        
+        // Toon nieuwe upload knop
+        const newUploadDiv = document.getElementById('new-upload-section');
+        if (newUploadDiv) {
+            newUploadDiv.innerHTML = `
+                <div class="text-center p-6 bg-base-200 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">Upload voltooid!</h3>
+                    <p class="text-base-content/70 mb-4">Alle bestanden zijn succesvol verwerkt.</p>
+                    <button onclick="resetUpload()" class="btn btn-primary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Nieuwe bestanden uploaden
+                    </button>
+                </div>
+            `;
+            newUploadDiv.classList.remove('hidden');
+        }
+    }
+    
+    function resetUpload() {
+        // Reset alle elementen
+        const progressDiv = document.getElementById('upload-progress');
+        const newUploadDiv = document.getElementById('new-upload-section');
+        const newUploadFiles = document.getElementById('new-upload-files');
+        
+        if (progressDiv) {
+            progressDiv.classList.add('hidden');
+        }
+        
+        if (newUploadDiv) {
+            newUploadDiv.classList.add('hidden');
+        }
+        
+        if (newUploadFiles) {
+            newUploadFiles.value = '';
+        }
+        
+        // Reset progress bar
+        updateProgress(0, 0, [], [], []);
+    }
+    
     function uploadAllFiles(files, csrfToken) {
         console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
         
@@ -458,14 +570,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('CSRF token gebruikt:', csrfToken.value.substring(0, 10) + '...');
         formData.append('csrfmiddlewaretoken', csrfToken.value);
         
-        // Toon loading indicator
-        updateProgress(0, files.length, [], [], []);
-        
-        // Toon upload status
-        const progressText = document.getElementById('progress-text');
-        if (progressText) {
-            progressText.textContent = `Uploaden van ${files.length} bestanden...`;
-        }
+        // Start live progress tracking
+        startLiveProgress(files.length);
         
         // Upload alle bestanden tegelijk
         fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
@@ -486,8 +592,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             console.log('Upload response data:', data);
             
-            // Update progress bar naar 100%
-            updateProgress(files.length, files.length, 
+            // Finaliseer progress tracking
+            finalizeProgress(files.length, 
                 data.created_candidates || [], 
                 data.skipped_duplicates || [], 
                 data.processing_errors || []
@@ -495,10 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.success) {
                 console.log('Upload succesvol');
-                // Reload pagina om nieuwe kandidaten te tonen
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+                // Geen automatische reload meer - laat resultaten staan
             } else {
                 console.error('Upload failed:', data.error);
                 alert('Fout bij uploaden: ' + (data.error || 'Onbekende fout'));
