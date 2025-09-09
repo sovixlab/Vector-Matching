@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const checkToken = () => {
                 // Eerst proberen globale CSRF token
-                if (window.csrfToken) {
+                if (window.csrfToken && window.csrfToken.length > 10) {
                     console.log('Globale CSRF token gevonden:', window.csrfToken.substring(0, 10) + '...');
                     // Maak een dummy element voor consistentie
                     const dummyElement = {
