@@ -277,13 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (newDropzone && newUploadFiles) {
         console.log('Nieuwe dropzone gevonden!');
-        console.log('Dropzone element:', newDropzone);
-        console.log('File input element:', newUploadFiles);
         
         // Click to select files
-        newDropzone.addEventListener('click', (e) => {
+        newDropzone.addEventListener('click', () => {
             console.log('Nieuwe dropzone geklikt');
-            e.preventDefault();
             newUploadFiles.click();
         });
         
@@ -312,10 +309,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Nieuwe dropzone: bestanden gedropt', files.length);
             handleNewFiles(files);
         });
-    } else {
-        console.error('Dropzone elementen niet gevonden!');
-        console.log('newDropzone:', newDropzone);
-        console.log('newUploadFiles:', newUploadFiles);
     }
     
 
@@ -747,18 +740,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const candidateCheckboxes = document.querySelectorAll('.candidate-checkbox');
     const bulkReprocessForm = document.getElementById('bulk-reprocess-form');
     const bulkDeleteForm = document.getElementById('bulk-delete-form');
-
-    console.log('Bulk actions elements found:', {
-        selectAllCheckbox: !!selectAllCheckbox,
-        selectAllBtn: !!selectAllBtn,
-        bulkReprocessBtn: !!bulkReprocessBtn,
-        bulkDeleteBtn: !!bulkDeleteBtn,
-        selectedCountSpan: !!selectedCountSpan,
-        selectedCountDeleteSpan: !!selectedCountDeleteSpan,
-        candidateCheckboxes: candidateCheckboxes.length,
-        bulkReprocessForm: !!bulkReprocessForm,
-        bulkDeleteForm: !!bulkDeleteForm
-    });
 
     // Select all checkbox
     if (selectAllCheckbox) {
