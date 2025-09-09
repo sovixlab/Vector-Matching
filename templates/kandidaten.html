@@ -456,70 +456,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-            function startLiveProgress(totalFiles) {
-                console.log('Start live progress voor', totalFiles, 'bestanden');
-
-                // Reset progress
-                updateProgress(0, totalFiles, [], [], []);
-
-                // Start real-time progress tracking
-                let currentProgress = 0;
-                let processedFiles = 0;
-
-                const progressInterval = setInterval(() => {
-                    // Simuleer verwerking van bestanden (1 bestand per 500ms)
-                    if (processedFiles < totalFiles) {
-                        processedFiles++;
-                        currentProgress = Math.round((processedFiles / totalFiles) * 100);
-
-                        const progressText = document.getElementById('progress-text');
-                        if (progressText) {
-                            progressText.textContent = `Verwerken van bestanden... ${processedFiles}/${totalFiles} (${currentProgress}%)`;
-                        }
-
-                        const progressBar = document.getElementById('progress-bar');
-                        if (progressBar) {
-                            progressBar.value = currentProgress;
-                        }
-
-                        const progressPercentage = document.getElementById('progress-percentage');
-                        if (progressPercentage) {
-                            progressPercentage.textContent = `${currentProgress}%`;
-                        }
-
-                        // Update resultaten (simuleer enkele toevoegingen)
-                        if (processedFiles % 3 === 0) {
-                            const addedList = document.getElementById('added-list');
-                            if (addedList) {
-                                addedList.innerHTML = `<p>• Bestand ${processedFiles} verwerkt</p>`;
-                            }
-                        }
-                    } else {
-                        // Alle bestanden verwerkt
-                        clearInterval(progressInterval);
-                        window.progressInterval = null;
+    function startLiveProgress(totalFiles) {
+        console.log('Start live progress voor', totalFiles, 'bestanden');
+        
+        // Reset progress
+        updateProgress(0, totalFiles, [], [], []);
+        
+        // Start real-time progress tracking
+        let currentProgress = 0;
+        let processedFiles = 0;
+        
+        const progressInterval = setInterval(() => {
+            // Simuleer verwerking van bestanden (1 bestand per 500ms)
+            if (processedFiles < totalFiles) {
+                processedFiles++;
+                currentProgress = Math.round((processedFiles / totalFiles) * 100);
+                
+                const progressText = document.getElementById('progress-text');
+                if (progressText) {
+                    progressText.textContent = `Verwerken van bestanden... ${processedFiles}/${totalFiles} (${currentProgress}%)`;
+                }
+                
+                const progressBar = document.getElementById('progress-bar');
+                if (progressBar) {
+                    progressBar.value = currentProgress;
+                }
+                
+                const progressPercentage = document.getElementById('progress-percentage');
+                if (progressPercentage) {
+                    progressPercentage.textContent = `${currentProgress}%`;
+                }
+                
+                // Update resultaten (simuleer enkele toevoegingen)
+                if (processedFiles % 3 === 0) {
+                    const addedList = document.getElementById('added-list');
+                    if (addedList) {
+                        addedList.innerHTML = `<p>• Bestand ${processedFiles} verwerkt</p>`;
                     }
-                }, 500); // 500ms per bestand (overeenkomend met backend sleep)
-
-                // Stop interval na langere tijd voor grote batches (fallback)
-                const timeout = totalFiles * 600; // 600ms per bestand + marge
-                setTimeout(() => {
-                    if (window.progressInterval) {
-                        clearInterval(window.progressInterval);
-                        window.progressInterval = null;
-                    }
-                }, timeout);
-
-                // Store interval ID for cleanup
-                window.progressInterval = progressInterval;
+                }
+            } else {
+                // Alle bestanden verwerkt
+                clearInterval(progressInterval);
+                window.progressInterval = null;
             }
-
-            function startRealProgress(totalFiles) {
-                console.log('Start real progress voor', totalFiles, 'bestanden');
-
-                // Reset progress
-                updateProgress(0, totalFiles, [], [], []);
+        }, 500); // 500ms per bestand (overeenkomend met backend sleep)
+        
+        // Stop interval na langere tijd voor grote batches (fallback)
+        const timeout = totalFiles * 600; // 600ms per bestand + marge
+        setTimeout(() => {
+            if (window.progressInterval) {
+                clearInterval(window.progressInterval);
+                window.progressInterval = null;
             }
+        }, timeout);
+        
+        // Store interval ID for cleanup
+        window.progressInterval = progressInterval;
+    }
     
             function finalizeProgress(totalFiles, created, skipped, errors) {
                 console.log('Finaliseer progress:', {totalFiles, created: created.length, skipped: skipped.length, errors: errors.length});
@@ -636,98 +629,132 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProgress(0, 0, [], [], []);
     }
     
-            function uploadAllFiles(files, csrfToken) {
-                console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
-
-                // Start real progress tracking
-                startRealProgress(files.length);
-
-                // Upload bestanden één voor één
-                uploadFilesSequentially(files, csrfToken, 0, [], [], []);
+    function uploadAllFiles(files, csrfToken) {
+        console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
+        
+        // Maak FormData voor alle bestanden
+        const formData = new FormData();
+        
+        // Voeg alle bestanden toe
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        
+        // Voeg CSRF token toe
+        console.log('CSRF token gebruikt:', csrfToken.value.substring(0, 10) + '...');
+        formData.append('csrfmiddlewaretoken', csrfToken.value);
+        
+        // Start live progress tracking
+        startLiveProgress(files.length);
+        
+        // Upload alle bestanden tegelijk
+        fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken.value
             }
+        })
+        .then(response => {
+            console.log('Upload response:', response.status);
+            if (response.ok) {
+                return response.json();
+            } else if (response.status === 502) {
+                throw new Error('Server overbelast. Probeer het later opnieuw of upload minder bestanden tegelijk.');
+            } else if (response.status === 413) {
+                throw new Error('Bestanden te groot. Probeer kleinere bestanden of upload minder tegelijk.');
+            } else if (response.status === 504) {
+                throw new Error('Server timeout. Probeer het later opnieuw.');
+            } else {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+        })
+        .then(data => {
+            console.log('Upload response data:', data);
+            
+            // Finaliseer progress tracking
+            finalizeProgress(files.length, 
+                data.created_candidates || [], 
+                data.skipped_duplicates || [], 
+                data.processing_errors || []
+            );
+            
+            if (data.success) {
+                console.log('Upload succesvol');
+                // Geen automatische reload meer - laat resultaten staan
+            } else {
+                console.error('Upload failed:', data.error);
+                alert('Fout bij uploaden: ' + (data.error || 'Onbekende fout'));
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            alert('Fout bij uploaden: ' + error.message);
+        });
+    }
 
-            function uploadFilesSequentially(files, csrfToken, currentIndex, created, skipped, errors) {
-                if (currentIndex >= files.length) {
-                    // Alle bestanden verwerkt
-                    finalizeProgress(files.length, created, skipped, errors);
-                    return;
+    function uploadFilesSequentially(files, index, added, skipped, failed) {
+        if (index >= files.length) {
+            // Alle bestanden verwerkt
+            console.log('Upload voltooid:', { added, skipped, failed });
+            
+            // Toon eindresultaat
+            setTimeout(() => {
+                if (added.length > 0 || skipped.length > 0 || failed.length > 0) {
+                    // Reload pagina om nieuwe kandidaten te tonen
+                    window.location.reload();
                 }
-
-                const file = files[currentIndex];
-                console.log(`Uploading file ${currentIndex + 1}/${files.length}: ${file.name}`);
-
-                // Update progress
-                updateProgress(currentIndex + 1, files.length, created, skipped, errors);
-
-                // Maak FormData voor één bestand
-                const formData = new FormData();
-                formData.append('files', file);
-                formData.append('csrfmiddlewaretoken', csrfToken.value);
-
-                // Upload één bestand
-                fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': csrfToken.value
-                    }
-                })
-                .then(response => {
-                    console.log(`Upload response for ${file.name}:`, response.status);
-                    if (response.ok) {
-                        return response.json();
-                    } else if (response.status === 502) {
-                        throw new Error('Server overbelast. Probeer het later opnieuw of upload minder bestanden tegelijk.');
-                    } else if (response.status === 413) {
-                        throw new Error('Bestanden te groot. Probeer kleinere bestanden of upload minder tegelijk.');
-                    } else if (response.status === 504) {
-                        throw new Error('Server timeout. Probeer het later opnieuw.');
-                    } else {
-                        throw new Error(`Upload failed: ${response.status}`);
-                    }
-                })
-                .then(data => {
-                    console.log(`Upload response data for ${file.name}:`, data);
-
-                    // Voeg resultaten toe
-                    if (data.created_candidates) {
-                        created.push(...data.created_candidates);
-                    }
-                    if (data.skipped_duplicates) {
-                        skipped.push(...data.skipped_duplicates);
-                    }
-                    if (data.processing_errors) {
-                        errors.push(...data.processing_errors);
-                    }
-
-                    // Update progress met nieuwe resultaten
-                    updateProgress(currentIndex + 1, files.length, created, skipped, errors);
-
-                    // Ga door naar volgende bestand
-                    setTimeout(() => {
-                        uploadFilesSequentially(files, csrfToken, currentIndex + 1, created, skipped, errors);
-                    }, 100); // Korte pauze tussen bestanden
-                })
-                .catch(error => {
-                    console.error(`Upload error for ${file.name}:`, error);
-                    
-                    // Voeg fout toe aan errors
-                    errors.push({
-                        file: file.name,
-                        error: error.message,
-                        candidate_id: null
-                    });
-
-                    // Update progress met fout
-                    updateProgress(currentIndex + 1, files.length, created, skipped, errors);
-
-                    // Ga door naar volgende bestand
-                    setTimeout(() => {
-                        uploadFilesSequentially(files, csrfToken, currentIndex + 1, created, skipped, errors);
-                    }, 100);
-                });
+            }, 2000);
+            return;
+        }
+        
+        const file = files[index];
+        console.log(`Uploading file ${index + 1}/${files.length}:`, file.name);
+        
+        // Maak FormData voor dit bestand
+        const formData = new FormData();
+        formData.append('files', file);
+        
+        // Voeg CSRF token toe
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        // Upload dit bestand
+        fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
             }
-
+        })
+        .then(response => {
+            console.log(`Upload response voor ${file.name}:`, response.status);
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+        })
+        .then(data => {
+            console.log(`Upload succesvol voor ${file.name}`);
+            added.push(file.name);
+            updateProgress(index + 1, files.length, added, skipped, failed);
+            
+            // Ga door naar volgende bestand
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1, added, skipped, failed);
+            }, 1000); // 1 seconde delay tussen bestanden
+        })
+        .catch(error => {
+            console.error(`Upload error voor ${file.name}:`, error);
+            failed.push(`${file.name}: ${error.message}`);
+            updateProgress(index + 1, files.length, added, skipped, failed);
+            
+            // Ga door naar volgende bestand
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1, added, skipped, failed);
+            }, 1000);
+        });
     }
 
     // Bulk actions functionality

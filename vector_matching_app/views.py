@@ -225,33 +225,6 @@ def kandidaten_upload_view(request):
 
 
 @login_required
-def upload_progress_view(request):
-    """AJAX endpoint voor upload voortgang."""
-    if request.method == 'GET':
-        # Haal de huidige upload status op
-        # Dit is een simpele implementatie - in productie zou je Redis of een database gebruiken
-        progress_data = {
-            'current_file': 0,
-            'total_files': 0,
-            'processed_files': 0,
-            'success_count': 0,
-            'duplicate_count': 0,
-            'error_count': 0,
-            'current_filename': '',
-            'is_complete': False,
-            'results': {
-                'success': [],
-                'duplicates': [],
-                'errors': []
-            }
-        }
-        
-        # TODO: Implementeer echte voortgangs tracking
-        # Voor nu returneren we een placeholder
-        return JsonResponse(progress_data)
-
-
-@login_required
 def kandidaat_detail_view(request, candidate_id):
     """Detail weergave van een kandidaat."""
     try:
