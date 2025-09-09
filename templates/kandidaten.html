@@ -335,8 +335,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Toon progress UI
         showProgressUI(validFiles.length);
         
-        // Upload bestanden één voor één
-        uploadFilesSequentially(validFiles, 0, [], [], []);
+        // Upload alle bestanden tegelijk (backend verwerkt ze één voor één)
+        uploadAllFiles(validFiles);
     }
     
     function showProgressUI(totalFiles) {
@@ -382,6 +382,50 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function uploadAllFiles(files) {
+        console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
+        
+        // Maak FormData voor alle bestanden
+        const formData = new FormData();
+        
+        // Voeg alle bestanden toe
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        
+        // Voeg CSRF token toe
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        // Upload alle bestanden tegelijk
+        fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            console.log('Upload response:', response.status);
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+        })
+        .then(data => {
+            console.log('Upload succesvol');
+            // Reload pagina om nieuwe kandidaten te tonen
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            alert('Fout bij uploaden: ' + error.message);
+        });
+    }
+
     function uploadFilesSequentially(files, index, added, skipped, failed) {
         if (index >= files.length) {
             // Alle bestanden verwerkt
@@ -458,12 +502,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkDeleteForm = document.getElementById('bulk-delete-form');
 
     // Select all checkbox
-    selectAllCheckbox.addEventListener('change', function() {
-        candidateCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            candidateCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkButtons();
         });
-        updateBulkButtons();
-    });
+    } else {
+        console.error('Select all checkbox not found!');
+    }
 
     // Individual checkboxes
     candidateCheckboxes.forEach(checkbox => {
@@ -471,52 +519,76 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Select all button
-    selectAllBtn.addEventListener('click', function() {
-        const allChecked = Array.from(candidateCheckboxes).every(cb => cb.checked);
-        candidateCheckboxes.forEach(checkbox => {
-            checkbox.checked = !allChecked;
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            const allChecked = Array.from(candidateCheckboxes).every(cb => cb.checked);
+            candidateCheckboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+            });
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = !allChecked;
+            }
+            updateBulkButtons();
         });
-        selectAllCheckbox.checked = !allChecked;
-        updateBulkButtons();
-    });
+    } else {
+        console.error('Select all button not found!');
+    }
 
-    // Bulk delete button
-    bulkReprocessBtn.addEventListener('click', function() {
-        const selectedCheckboxes = document.querySelectorAll('.candidate-checkbox:checked');
-        const selectedCount = selectedCheckboxes.length;
-        
-        if (selectedCount > 0) {
-            if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) opnieuw wilt embedden? Dit kan even duren.`)) {
-                startBulkReprocess(selectedCheckboxes);
+    // Bulk reprocess button
+    if (bulkReprocessBtn) {
+        bulkReprocessBtn.addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.candidate-checkbox:checked');
+            const selectedCount = selectedCheckboxes.length;
+            
+            if (selectedCount > 0) {
+                if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) opnieuw wilt embedden? Dit kan even duren.`)) {
+                    startBulkReprocess(selectedCheckboxes);
+                }
             }
-        }
-    });
+        });
+    } else {
+        console.error('Bulk reprocess button not found!');
+    }
 
-    bulkDeleteBtn.addEventListener('click', function() {
-        const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
-        if (selectedCount > 0) {
-            if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt verwijderen?`)) {
-                bulkDeleteForm.submit();
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', function() {
+            const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
+            if (selectedCount > 0) {
+                if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt verwijderen?`)) {
+                    bulkDeleteForm.submit();
+                }
             }
-        }
-    });
+        });
+    } else {
+        console.error('Bulk delete button not found!');
+    }
 
     function updateBulkButtons() {
         const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
-        selectedCountSpan.textContent = selectedCount;
-        selectedCountDeleteSpan.textContent = selectedCount;
-        bulkReprocessBtn.disabled = selectedCount === 0;
-        bulkDeleteBtn.disabled = selectedCount === 0;
+        if (selectedCountSpan) {
+            selectedCountSpan.textContent = selectedCount;
+        }
+        if (selectedCountDeleteSpan) {
+            selectedCountDeleteSpan.textContent = selectedCount;
+        }
+        if (bulkReprocessBtn) {
+            bulkReprocessBtn.disabled = selectedCount === 0;
+        }
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.disabled = selectedCount === 0;
+        }
         
         // Update select all checkbox state
-        if (selectedCount === 0) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = false;
-        } else if (selectedCount === candidateCheckboxes.length) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = true;
-        } else {
-            selectAllCheckbox.indeterminate = true;
+        if (selectAllCheckbox) {
+            if (selectedCount === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (selectedCount === candidateCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
         }
     }
 

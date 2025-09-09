@@ -121,7 +121,7 @@ def kandidaten_upload_view(request):
             messages.error(request, f'Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: {", ".join(invalid_files)}')
             return redirect('vector_matching_app:kandidaten')
         
-        # Verwerk bestanden één voor één, rustig aan
+        # Verwerk bestanden één voor één
         created_candidates = []
         skipped_duplicates = []
         processing_errors = []
@@ -141,7 +141,7 @@ def kandidaten_upload_view(request):
                     embed_status='queued'
                 )
                 
-                # Verwerk één voor één met korte pauze
+                # Verwerk één voor één
                 try:
                     logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
                     process_candidate_pipeline(candidate.id)
@@ -153,24 +153,15 @@ def kandidaten_upload_view(request):
                         candidate.delete()
                         skipped_duplicates.append(file.name)
                         logger.info(f"Duplicaat overgeslagen: {file.name}")
-                        # Geen pauze na duplicaat - ga direct door
                     else:
                         created_candidates.append(candidate)
                         logger.info(f"Verwerking voltooid voor {file.name}")
-                        # Korte pauze alleen na succesvolle verwerking
-                        if i < len(files) - 1:
-                            import time
-                            time.sleep(1)  # 1 seconde pauze
                         
                 except Exception as e:
                     logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
                     processing_errors.append(f'{file.name}: {str(e)}')
                     # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
                     created_candidates.append(candidate)
-                    # Korte pauze na fout
-                    if i < len(files) - 1:
-                        import time
-                        time.sleep(1)
                     
             except Exception as e:
                 logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
