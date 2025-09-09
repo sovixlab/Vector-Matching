@@ -153,31 +153,56 @@ def kandidaten_upload_view(request):
                         logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
                         process_candidate_pipeline(candidate.id)
                         
+                        # Controleer resultaat na verwerking
+                        candidate.refresh_from_db()
+                        
+                        if candidate.embed_status == 'completed':
+                            created_candidates.append({
+                                'name': candidate.name or file.name,
+                                'file': file.name,
+                                'id': candidate.id
+                            })
+                            logger.info(f"Succesvol verwerkt: {file.name}")
+                            
+                        elif candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
+                            # Verwijder de kandidaat als het een duplicaat was
+                            candidate.delete()
+                            skipped_duplicates.append({
+                                'file': file.name,
+                                'reason': 'E-mailadres bestaat al'
+                            })
+                            logger.info(f"Duplicaat overgeslagen: {file.name}")
+                            
+                        else:
+                            # Andere fout
+                            error_msg = candidate.error_message or 'Onbekende fout'
+                            processing_errors.append({
+                                'file': file.name,
+                                'error': error_msg,
+                                'candidate_id': candidate.id
+                            })
+                            logger.error(f"Verwerking gefaald voor {file.name}: {error_msg}")
+                        
                         # Pauze tussen bestanden om server niet te overbelasten
                         if i < len(files) - 1:  # Niet na het laatste bestand
                             import time
                             time.sleep(0.5)  # 500ms pauze tussen bestanden
-                        
-                        # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
-                        candidate.refresh_from_db()
-                        if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
-                            # Verwijder de kandidaat als het een duplicaat was
-                            candidate.delete()
-                            skipped_duplicates.append(file.name)
-                            logger.info(f"Duplicaat overgeslagen: {file.name}")
-                        else:
-                            created_candidates.append(candidate)
-                            logger.info(f"Verwerking voltooid voor {file.name}")
                             
                     except Exception as e:
                         logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
-                        processing_errors.append(f'{file.name}: {str(e)}')
-                        # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
-                        created_candidates.append(candidate)
+                        processing_errors.append({
+                            'file': file.name,
+                            'error': str(e),
+                            'candidate_id': candidate.id if 'candidate' in locals() else None
+                        })
                         
                 except Exception as e:
                     logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
-                    processing_errors.append(f'{file.name}: {str(e)}')
+                    processing_errors.append({
+                        'file': file.name,
+                        'error': str(e),
+                        'candidate_id': None
+                    })
         
         except Exception as e:
             logger.error(f"Kritieke fout tijdens upload verwerking: {str(e)}")
@@ -192,7 +217,7 @@ def kandidaten_upload_view(request):
             'created_count': len(created_candidates),
             'skipped_count': len(skipped_duplicates),
             'error_count': len(processing_errors),
-            'created_candidates': [c.name for c in created_candidates],
+            'created_candidates': created_candidates,
             'skipped_duplicates': skipped_duplicates,
             'processing_errors': processing_errors,
             'message': f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!'

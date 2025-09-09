@@ -514,30 +514,72 @@ document.addEventListener('DOMContentLoaded', function() {
         window.progressInterval = progressInterval;
     }
     
-    function finalizeProgress(totalFiles, created, skipped, errors) {
-        console.log('Finaliseer progress:', {totalFiles, created: created.length, skipped: skipped.length, errors: errors.length});
-        
-        // Stop progress interval
-        if (window.progressInterval) {
-            clearInterval(window.progressInterval);
-            window.progressInterval = null;
-        }
-        
-        // Update naar 100% met echte resultaten
-        updateProgress(totalFiles, totalFiles, created, skipped, errors);
-        
-        // Update progress text met echte resultaten
-        const progressText = document.getElementById('progress-text');
-        if (progressText) {
-            const successCount = created.length;
-            const skippedCount = skipped.length;
-            const errorCount = errors.length;
-            progressText.textContent = `Upload voltooid: ${successCount} toegevoegd, ${skippedCount} overgeslagen, ${errorCount} fouten`;
-        }
-        
-        // Toon "Nieuwe upload" knop
-        showNewUploadButton();
-    }
+            function finalizeProgress(totalFiles, created, skipped, errors) {
+                console.log('Finaliseer progress:', {totalFiles, created: created.length, skipped: skipped.length, errors: errors.length});
+
+                // Stop progress interval
+                if (window.progressInterval) {
+                    clearInterval(window.progressInterval);
+                    window.progressInterval = null;
+                }
+
+                // Update naar 100% met echte resultaten
+                updateProgress(totalFiles, totalFiles, created, skipped, errors);
+
+                // Update progress text met echte resultaten
+                const progressText = document.getElementById('progress-text');
+                if (progressText) {
+                    const successCount = created.length;
+                    const skippedCount = skipped.length;
+                    const errorCount = errors.length;
+                    progressText.textContent = `Upload voltooid: ${successCount} toegevoegd, ${skippedCount} overgeslagen, ${errorCount} fouten`;
+                }
+
+                // Toon "Nieuwe upload" knop
+                showNewUploadButton();
+            }
+
+            function updateProgress(current, total, created, skipped, errors) {
+                const progressBar = document.getElementById('progress-bar');
+                const progressPercentage = document.getElementById('progress-percentage');
+                const progressText = document.getElementById('progress-text');
+                const addedList = document.getElementById('added-list');
+                const skippedList = document.getElementById('skipped-list');
+                const failedList = document.getElementById('failed-list');
+
+                if (progressBar) {
+                    const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+                    progressBar.value = percentage;
+                }
+
+                if (progressPercentage) {
+                    const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+                    progressPercentage.textContent = `${percentage}%`;
+                }
+
+                if (progressText) {
+                    progressText.textContent = `Verwerken van bestanden... ${current}/${total} (${total > 0 ? Math.round((current / total) * 100) : 0}%)`;
+                }
+
+                // Update resultaten lijsten
+                if (addedList && created) {
+                    addedList.innerHTML = created.map(item => 
+                        `<p>• ${item.name || item.file} (${item.file})</p>`
+                    ).join('');
+                }
+
+                if (skippedList && skipped) {
+                    skippedList.innerHTML = skipped.map(item => 
+                        `<p>• ${item.file} - ${item.reason}</p>`
+                    ).join('');
+                }
+
+                if (failedList && errors) {
+                    failedList.innerHTML = errors.map(item => 
+                        `<p>• ${item.file} - ${item.error}</p>`
+                    ).join('');
+                }
+            }
     
     function showNewUploadButton() {
         // Verberg progress sectie
