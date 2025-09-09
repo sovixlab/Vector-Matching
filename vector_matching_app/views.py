@@ -166,6 +166,7 @@ def kandidaten_upload_view(request):
                             candidate.delete()
                             skipped_duplicates.append(f"{candidate_name} (duplicaat)")
                             logger.info(f"Duplicaat overgeslagen: {file.name} - {candidate.error_message}")
+                            # NIET toevoegen aan created_candidates!
                         else:
                             created_candidates.append(candidate)
                             logger.info(f"Verwerking voltooid voor {file.name}")

@@ -146,6 +146,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 if not DEBUG:
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
     WHITENOISE_USE_FINDERS = True
+    # Serve media files in production
+    WHITENOISE_ROOT = BASE_DIR / 'media'
 
 # Media files (user uploads)
 MEDIA_URL = '/media/'
