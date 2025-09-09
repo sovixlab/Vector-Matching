@@ -37,7 +37,13 @@ def create_backup_sync(backup):
             if backup.backup_type in ['full', 'files']:
                 files_backup_path = os.path.join(temp_dir, 'media_files')
                 create_files_backup(files_backup_path)
-                backup_files.append(files_backup_path)
+                
+                # Controleer of er bestanden zijn gekopieerd
+                if os.path.exists(files_backup_path) and os.listdir(files_backup_path):
+                    backup_files.append(files_backup_path)
+                    logger.info(f"Media files backup created successfully: {files_backup_path}")
+                else:
+                    logger.warning("No media files found to backup")
             
             # Maak ZIP bestand
             zip_path = create_backup_zip(backup_files, temp_dir, backup.name)
@@ -102,10 +108,43 @@ def create_files_backup(output_path):
     """Maak backup van media bestanden."""
     media_root = settings.MEDIA_ROOT
     
+    logger.info(f"Creating files backup from: {media_root}")
+    logger.info(f"Media root exists: {os.path.exists(media_root)}")
+    
     if os.path.exists(media_root):
+        # Debug: toon wat er in de media directory staat
+        logger.info("Contents of media directory:")
+        for root, dirs, files in os.walk(media_root):
+            level = root.replace(media_root, '').count(os.sep)
+            indent = ' ' * 2 * level
+            logger.info(f"{indent}{os.path.basename(root)}/")
+            subindent = ' ' * 2 * (level + 1)
+            for file in files:
+                logger.info(f"{subindent}{file}")
+        
         import shutil
-        shutil.copytree(media_root, output_path)
+        try:
+            # Kopieer de hele media directory
+            shutil.copytree(media_root, output_path)
+            logger.info(f"Successfully copied media files to: {output_path}")
+            
+            # Log wat er gekopieerd is
+            logger.info("Contents of copied backup directory:")
+            for root, dirs, files in os.walk(output_path):
+                level = root.replace(output_path, '').count(os.sep)
+                indent = ' ' * 2 * level
+                logger.info(f"{indent}{os.path.basename(root)}/")
+                subindent = ' ' * 2 * (level + 1)
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    file_size = os.path.getsize(file_path)
+                    logger.info(f"{subindent}{file} ({file_size} bytes)")
+        except Exception as e:
+            logger.error(f"Error copying media files: {e}")
+            # Maak lege directory als kopiëren mislukt
+            os.makedirs(output_path, exist_ok=True)
     else:
+        logger.warning(f"Media root does not exist: {media_root}")
         # Maak lege directory als media root niet bestaat
         os.makedirs(output_path, exist_ok=True)
 
@@ -114,20 +153,33 @@ def create_backup_zip(backup_files, temp_dir, backup_name):
     """Maak ZIP bestand van backup bestanden."""
     zip_path = os.path.join(temp_dir, f"{backup_name}.zip")
     
+    logger.info(f"Creating ZIP file: {zip_path}")
+    logger.info(f"Backup files to include: {backup_files}")
+    
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for file_path in backup_files:
+            logger.info(f"Processing backup file: {file_path}")
             if os.path.isfile(file_path):
                 # Voeg bestand toe
                 arcname = os.path.basename(file_path)
                 zipf.write(file_path, arcname)
+                logger.info(f"Added file to ZIP: {arcname}")
             elif os.path.isdir(file_path):
                 # Voeg directory toe
+                logger.info(f"Adding directory to ZIP: {file_path}")
+                file_count = 0
                 for root, dirs, files in os.walk(file_path):
                     for file in files:
                         file_path_full = os.path.join(root, file)
                         arcname = os.path.relpath(file_path_full, temp_dir)
                         zipf.write(file_path_full, arcname)
+                        file_count += 1
+                        logger.info(f"Added file to ZIP: {arcname}")
+                logger.info(f"Total files added from directory: {file_count}")
+            else:
+                logger.warning(f"Backup file does not exist: {file_path}")
     
+    logger.info(f"ZIP file created successfully: {zip_path}")
     return zip_path
 
 
