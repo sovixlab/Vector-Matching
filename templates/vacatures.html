@@ -250,20 +250,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkReprocessForm = document.getElementById('bulk-reprocess-form');
     const bulkVacatureIds = document.getElementById('bulk-vacature-ids');
     const selectedCount = document.getElementById('selected-count');
-    const bulkReprocessText = document.getElementById('bulk-reprocess-text');
+    
+    console.log('Form elements found:', {
+        bulkReprocessForm: !!bulkReprocessForm,
+        bulkVacatureIds: !!bulkVacatureIds,
+        selectedCount: !!selectedCount
+    });
 
     function updateBulkActions() {
         const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
         const count = checkedBoxes.length;
         
-        selectedCount.textContent = count;
+        if (selectedCount) {
+            selectedCount.textContent = count;
+        }
         
         if (count > 0) {
-            bulkReprocessForm.classList.remove('hidden');
-            bulkReprocessForm.classList.add('inline-block');
+            if (bulkReprocessForm) {
+                bulkReprocessForm.classList.remove('hidden');
+            }
         } else {
-            bulkReprocessForm.classList.add('hidden');
-            bulkReprocessForm.classList.remove('inline-block');
+            if (bulkReprocessForm) {
+                bulkReprocessForm.classList.add('hidden');
+            }
         }
         
         // Update select all checkbox state

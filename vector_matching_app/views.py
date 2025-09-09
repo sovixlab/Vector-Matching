@@ -23,12 +23,17 @@ logger = logging.getLogger(__name__)
 @login_required
 def index(request):
     """Dashboard met overzicht van kandidaten en systeem status."""
+    from datetime import datetime, timedelta
+    
     # Haal statistieken op
     total_candidates = Candidate.objects.count()
-    completed_candidates = Candidate.objects.filter(embed_status='completed').count()
-    queued_candidates = Candidate.objects.filter(embed_status='queued').count()
-    failed_candidates = Candidate.objects.filter(embed_status='failed').count()
     total_vacatures = Vacature.objects.filter(actief=True).count()
+    
+    # Fictieve matches (voor later implementatie)
+    total_matches = 0  # TODO: Implementeer echte match logica
+    
+    # Laatste match update (fictief voor nu)
+    last_match_update = datetime.now() - timedelta(hours=2)  # TODO: Implementeer echte match tracking
     
     # Haal recente kandidaten op (laatste 10)
     recent_candidates = Candidate.objects.order_by('-updated_at')[:10]
@@ -42,10 +47,9 @@ def index(request):
     
     context = {
         'total_candidates': total_candidates,
-        'completed_candidates': completed_candidates,
-        'queued_candidates': queued_candidates,
-        'failed_candidates': failed_candidates,
         'total_vacatures': total_vacatures,
+        'total_matches': total_matches,
+        'last_match_update': last_match_update,
         'recent_candidates': recent_candidates,
         'health_status': health_status,
     }
