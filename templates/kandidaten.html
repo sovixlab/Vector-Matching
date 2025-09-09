@@ -469,17 +469,23 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => {
             console.log('Upload response:', response.status);
             if (response.ok) {
-                return response.text();
+                return response.json();
             } else {
                 throw new Error(`Upload failed: ${response.status}`);
             }
         })
         .then(data => {
-            console.log('Upload succesvol');
-            // Reload pagina om nieuwe kandidaten te tonen
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            console.log('Upload response data:', data);
+            if (data.success) {
+                console.log('Upload succesvol');
+                // Reload pagina om nieuwe kandidaten te tonen
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                console.error('Upload failed:', data.error);
+                alert('Fout bij uploaden: ' + (data.error || 'Onbekende fout'));
+            }
         })
         .catch(error => {
             console.error('Upload error:', error);

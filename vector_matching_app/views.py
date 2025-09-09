@@ -104,12 +104,16 @@ def kandidaten_upload_view(request):
         
         # Validatie
         if not files:
-            messages.error(request, 'Geen bestanden geselecteerd.')
-            return redirect('vector_matching_app:kandidaten')
+            return JsonResponse({
+                'success': False,
+                'error': 'Geen bestanden geselecteerd.'
+            })
         
         if len(files) > 100:
-            messages.error(request, 'Maximaal 100 bestanden tegelijk toegestaan.')
-            return redirect('vector_matching_app:kandidaten')
+            return JsonResponse({
+                'success': False,
+                'error': 'Maximaal 100 bestanden tegelijk toegestaan.'
+            })
         
         # Controleer bestandstypen
         invalid_files = []
@@ -118,8 +122,10 @@ def kandidaten_upload_view(request):
                 invalid_files.append(file.name)
         
         if invalid_files:
-            messages.error(request, f'Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: {", ".join(invalid_files)}')
-            return redirect('vector_matching_app:kandidaten')
+            return JsonResponse({
+                'success': False,
+                'error': f'Alleen PDF bestanden zijn toegestaan. Ongeldige bestanden: {", ".join(invalid_files)}'
+            })
         
         # Verwerk bestanden één voor één
         created_candidates = []
@@ -167,31 +173,17 @@ def kandidaten_upload_view(request):
                 logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
                 processing_errors.append(f'{file.name}: {str(e)}')
         
-        # Toon resultaten
-        if created_candidates:
-            success_message = f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!'
-            if skipped_duplicates:
-                success_message += f' {len(skipped_duplicates)} duplicaat(en) overgeslagen.'
-            messages.success(request, success_message)
-            
-            # Redirect naar de eerste kandidaat detail pagina (als die bestaat)
-            if len(created_candidates) == 1:
-                return redirect('vector_matching_app:kandidaat_detail', candidate_id=created_candidates[0].id)
-        else:
-            # Geen kandidaten aangemaakt
-            if skipped_duplicates:
-                messages.warning(request, f'Alle {len(skipped_duplicates)} bestand(en) waren duplicaten en zijn overgeslagen.')
-            else:
-                messages.error(request, 'Geen bestanden konden worden verwerkt.')
-        
-        # Toon verwerkingsfouten
-        if processing_errors:
-            error_message = f'Verwerkingsfouten: {"; ".join(processing_errors[:3])}'
-            if len(processing_errors) > 3:
-                error_message += f' (en {len(processing_errors) - 3} meer)'
-            messages.error(request, error_message)
-        
-        return redirect('vector_matching_app:kandidaten')
+        # Return JSON response
+        return JsonResponse({
+            'success': True,
+            'created_count': len(created_candidates),
+            'skipped_count': len(skipped_duplicates),
+            'error_count': len(processing_errors),
+            'created_candidates': [c.name for c in created_candidates],
+            'skipped_duplicates': skipped_duplicates,
+            'processing_errors': processing_errors,
+            'message': f'{len(created_candidates)} CV(s) succesvol geüpload en verwerkt!'
+        })
 
 
 @login_required
