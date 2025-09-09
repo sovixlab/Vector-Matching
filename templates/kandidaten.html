@@ -11,14 +11,14 @@
 
     <!-- UPLOAD DROPZONE -->
     <div class="mb-8">
-        <div id="new-dropzone" class="border-2 border-dashed border-primary rounded-lg p-8 text-center bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+        <div id="upload-dropzone" class="border-2 border-dashed border-primary rounded-lg p-8 text-center bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
             <div class="flex flex-col items-center">
                 <svg class="w-12 h-12 text-primary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                 </svg>
                 <h3 class="text-lg font-medium text-base-content mb-2">Sleep PDF bestanden hierheen</h3>
                 <p class="text-base-content/60 mb-4">of klik om bestanden te selecteren</p>
-                <input type="file" id="new-upload-files" multiple accept=".pdf" class="hidden">
+                <input type="file" id="upload-files" multiple accept=".pdf" class="hidden">
             </div>
         </div>
         
@@ -71,10 +71,6 @@
         </div>
     </div>
 
-    <!-- NIEUWE UPLOAD SECTIE -->
-    <div id="new-upload-section" class="hidden mb-8">
-        <!-- Wordt dynamisch ingevuld -->
-    </div>
 
     <!-- BULK REPROCESS PROGRESS -->
     <div id="bulk-reprocess-progress" class="hidden mb-8">
@@ -257,11 +253,6 @@
 </div>
 {% endblock %}
 
-<!-- Upload Form (hidden) -->
-<form id="upload-form" action="{% url 'vector_matching_app:kandidaten_upload' %}" method="post" enctype="multipart/form-data" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden;">
-    {% csrf_token %}
-    <input type="file" id="upload-files" name="files" multiple accept=".pdf" style="position: absolute; left: -9999px; top: -9999px; visibility: hidden;">
-</form>
 
 {% block extra_js %}
 <script>
@@ -271,66 +262,50 @@ window.csrfToken = '{{ csrf_token|escapejs }}';
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JavaScript geladen');
     
-    // NIEUWE DROPZONE - EENVOUDIGE VERSIE
-    const newDropzone = document.getElementById('new-dropzone');
-    const newUploadFiles = document.getElementById('new-upload-files');
+    // DROPZONE - EENVOUDIGE VERSIE
+    const dropzone = document.getElementById('upload-dropzone');
+    const uploadFiles = document.getElementById('upload-files');
     
-    if (newDropzone && newUploadFiles) {
-        console.log('Nieuwe dropzone gevonden!');
+    if (dropzone && uploadFiles) {
+        console.log('Dropzone gevonden!');
         
         // Click to select files
-        newDropzone.addEventListener('click', () => {
-            console.log('Nieuwe dropzone geklikt');
-            newUploadFiles.click();
+        dropzone.addEventListener('click', () => {
+            console.log('Dropzone geklikt');
+            uploadFiles.click();
         });
         
         // File input change
-        newUploadFiles.addEventListener('change', (e) => {
-            console.log('Nieuwe dropzone: bestanden geselecteerd', e.target.files.length);
-            handleNewFiles(e.target.files);
+        uploadFiles.addEventListener('change', (e) => {
+            console.log('Bestanden geselecteerd:', e.target.files.length);
+            handleFiles(e.target.files);
         });
         
         // Drag and drop
-        newDropzone.addEventListener('dragover', (e) => {
+        dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            newDropzone.classList.add('border-accent', 'bg-accent/10');
+            dropzone.classList.add('border-accent', 'bg-accent/10');
         });
         
-        newDropzone.addEventListener('dragleave', (e) => {
+        dropzone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            newDropzone.classList.remove('border-accent', 'bg-accent/10');
+            dropzone.classList.remove('border-accent', 'bg-accent/10');
         });
         
-        newDropzone.addEventListener('drop', (e) => {
+        dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            newDropzone.classList.remove('border-accent', 'bg-accent/10');
+            dropzone.classList.remove('border-accent', 'bg-accent/10');
             
             const files = e.dataTransfer.files;
-            console.log('Nieuwe dropzone: bestanden gedropt', files.length);
-            handleNewFiles(files);
+            console.log('Bestanden gedropt:', files.length);
+            handleFiles(files);
         });
     }
     
 
-    // UPLOAD FUNCTIE MET PROGRESS TRACKING
-    function waitForCSRFToken() {
-        return new Promise((resolve, reject) => {
-            // CSRF token is nu direct beschikbaar
-            if (window.csrfToken && window.csrfToken.length > 10) {
-                console.log('CSRF token direct beschikbaar:', window.csrfToken.substring(0, 10) + '...');
-                const dummyElement = {
-                    value: window.csrfToken
-                };
-                resolve(dummyElement);
-            } else {
-                console.error('CSRF token niet beschikbaar:', window.csrfToken);
-                reject(new Error('CSRF token not found'));
-            }
-        });
-    }
-    
-    function handleNewFiles(files) {
-        console.log('Upload: handleNewFiles aangeroepen met', files.length, 'bestanden');
+    // UPLOAD FUNCTIE MET ECHTE PROGRESS
+    function handleFiles(files) {
+        console.log('Upload: handleFiles aangeroepen met', files.length, 'bestanden');
         
         if (!files || files.length === 0) {
             console.log('Geen bestanden geselecteerd');
@@ -367,12 +342,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Toon progress UI
         showProgressUI(validFiles.length);
         
-        // Wacht tot CSRF token beschikbaar is
-        waitForCSRFToken().then((csrfToken) => {
-            uploadAllFiles(validFiles, csrfToken);
-        }).catch(() => {
-            alert('Fout: CSRF token niet gevonden. Probeer de pagina te verversen.');
-        });
+        // Start upload
+        uploadFilesSequentially(validFiles, 0, [], [], []);
     }
     
     function showProgressUI(totalFiles) {
@@ -456,205 +427,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function startLiveProgress(totalFiles) {
-        console.log('Start live progress voor', totalFiles, 'bestanden');
-        
-        // Reset progress
-        updateProgress(0, totalFiles, [], [], []);
-        
-        // Start real-time progress tracking
-        let currentProgress = 0;
-        let processedFiles = 0;
-        
-        const progressInterval = setInterval(() => {
-            // Simuleer verwerking van bestanden (1 bestand per 500ms)
-            if (processedFiles < totalFiles) {
-                processedFiles++;
-                currentProgress = Math.round((processedFiles / totalFiles) * 100);
-                
-                const progressText = document.getElementById('progress-text');
-                if (progressText) {
-                    progressText.textContent = `Verwerken van bestanden... ${processedFiles}/${totalFiles} (${currentProgress}%)`;
-                }
-                
-                const progressBar = document.getElementById('progress-bar');
-                if (progressBar) {
-                    progressBar.value = currentProgress;
-                }
-                
-                const progressPercentage = document.getElementById('progress-percentage');
-                if (progressPercentage) {
-                    progressPercentage.textContent = `${currentProgress}%`;
-                }
-                
-                // Update resultaten (simuleer enkele toevoegingen)
-                if (processedFiles % 3 === 0) {
-                    const addedList = document.getElementById('added-list');
-                    if (addedList) {
-                        addedList.innerHTML = `<p>• Bestand ${processedFiles} verwerkt</p>`;
-                    }
-                }
-            } else {
-                // Alle bestanden verwerkt
-                clearInterval(progressInterval);
-                window.progressInterval = null;
-            }
-        }, 500); // 500ms per bestand (overeenkomend met backend sleep)
-        
-        // Stop interval na langere tijd voor grote batches (fallback)
-        const timeout = totalFiles * 600; // 600ms per bestand + marge
-        setTimeout(() => {
-            if (window.progressInterval) {
-                clearInterval(window.progressInterval);
-                window.progressInterval = null;
-            }
-        }, timeout);
-        
-        // Store interval ID for cleanup
-        window.progressInterval = progressInterval;
-    }
-    
-    function finalizeProgress(totalFiles, created, skipped, errors) {
-        console.log('Finaliseer progress:', {totalFiles, created: created.length, skipped: skipped.length, errors: errors.length});
-        
-        // Stop progress interval
-        if (window.progressInterval) {
-            clearInterval(window.progressInterval);
-            window.progressInterval = null;
-        }
-        
-        // Update naar 100% met echte resultaten
-        updateProgress(totalFiles, totalFiles, created, skipped, errors);
-        
-        // Update progress text met echte resultaten
-        const progressText = document.getElementById('progress-text');
-        if (progressText) {
-            const successCount = created.length;
-            const skippedCount = skipped.length;
-            const errorCount = errors.length;
-            progressText.textContent = `Upload voltooid: ${successCount} toegevoegd, ${skippedCount} overgeslagen, ${errorCount} fouten`;
-        }
-        
-        // Toon "Nieuwe upload" knop
-        showNewUploadButton();
-    }
-    
-    function showNewUploadButton() {
-        // Verberg progress sectie
-        const progressDiv = document.getElementById('upload-progress');
-        if (progressDiv) {
-            progressDiv.classList.add('hidden');
-        }
-        
-        // Toon nieuwe upload knop
-        const newUploadDiv = document.getElementById('new-upload-section');
-        if (newUploadDiv) {
-            newUploadDiv.innerHTML = `
-                <div class="text-center p-6 bg-base-200 rounded-lg">
-                    <h3 class="text-lg font-semibold mb-4">Upload voltooid!</h3>
-                    <p class="text-base-content/70 mb-4">Alle bestanden zijn succesvol verwerkt.</p>
-                    <button onclick="resetUpload()" class="btn btn-primary">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        Nieuwe bestanden uploaden
-                    </button>
-                </div>
-            `;
-            newUploadDiv.classList.remove('hidden');
-        }
-    }
-    
-    function resetUpload() {
-        // Reset alle elementen
-        const progressDiv = document.getElementById('upload-progress');
-        const newUploadDiv = document.getElementById('new-upload-section');
-        const newUploadFiles = document.getElementById('new-upload-files');
-        
-        if (progressDiv) {
-            progressDiv.classList.add('hidden');
-        }
-        
-        if (newUploadDiv) {
-            newUploadDiv.classList.add('hidden');
-        }
-        
-        if (newUploadFiles) {
-            newUploadFiles.value = '';
-        }
-        
-        // Reset progress bar
-        updateProgress(0, 0, [], [], []);
-    }
-    
-    function uploadAllFiles(files, csrfToken) {
-        console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
-        
-        // Maak FormData voor alle bestanden
-        const formData = new FormData();
-        
-        // Voeg alle bestanden toe
-        for (let i = 0; i < files.length; i++) {
-            formData.append('files', files[i]);
-        }
-        
-        // Voeg CSRF token toe
-        console.log('CSRF token gebruikt:', csrfToken.value.substring(0, 10) + '...');
-        formData.append('csrfmiddlewaretoken', csrfToken.value);
-        
-        // Start live progress tracking
-        startLiveProgress(files.length);
-        
-        // Upload alle bestanden tegelijk
-        fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': csrfToken.value
-            }
-        })
-        .then(response => {
-            console.log('Upload response:', response.status);
-            if (response.ok) {
-                return response.json();
-            } else if (response.status === 502) {
-                throw new Error('Server overbelast. Probeer het later opnieuw of upload minder bestanden tegelijk.');
-            } else if (response.status === 413) {
-                throw new Error('Bestanden te groot. Probeer kleinere bestanden of upload minder tegelijk.');
-            } else if (response.status === 504) {
-                throw new Error('Server timeout. Probeer het later opnieuw.');
-            } else {
-                throw new Error(`Upload failed: ${response.status}`);
-            }
-        })
-        .then(data => {
-            console.log('Upload response data:', data);
-            
-            // Finaliseer progress tracking
-            finalizeProgress(files.length, 
-                data.created_candidates || [], 
-                data.skipped_duplicates || [], 
-                data.processing_errors || []
-            );
-            
-            if (data.success) {
-                console.log('Upload succesvol');
-                // Geen automatische reload meer - laat resultaten staan
-            } else {
-                console.error('Upload failed:', data.error);
-                alert('Fout bij uploaden: ' + (data.error || 'Onbekende fout'));
-            }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-            alert('Fout bij uploaden: ' + error.message);
-        });
-    }
 
     function uploadFilesSequentially(files, index, added, skipped, failed) {
         if (index >= files.length) {
             // Alle bestanden verwerkt
             console.log('Upload voltooid:', { added, skipped, failed });
+            
+            // Update naar 100%
+            updateProgress(files.length, files.length, added, skipped, failed);
             
             // Toon eindresultaat
             setTimeout(() => {
@@ -688,20 +468,36 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => {
             console.log(`Upload response voor ${file.name}:`, response.status);
             if (response.ok) {
-                return response.text();
+                return response.json();
             } else {
                 throw new Error(`Upload failed: ${response.status}`);
             }
         })
         .then(data => {
-            console.log(`Upload succesvol voor ${file.name}`);
-            added.push(file.name);
+            console.log(`Upload succesvol voor ${file.name}:`, data);
+            
+            // Verwerk resultaat
+            if (data.success) {
+                if (data.created_candidates && data.created_candidates.length > 0) {
+                    added.push(...data.created_candidates);
+                }
+                if (data.skipped_duplicates && data.skipped_duplicates.length > 0) {
+                    skipped.push(...data.skipped_duplicates);
+                }
+                if (data.processing_errors && data.processing_errors.length > 0) {
+                    failed.push(...data.processing_errors);
+                }
+            } else {
+                failed.push(`${file.name}: ${data.error || 'Onbekende fout'}`);
+            }
+            
+            // Update progress
             updateProgress(index + 1, files.length, added, skipped, failed);
             
             // Ga door naar volgende bestand
             setTimeout(() => {
                 uploadFilesSequentially(files, index + 1, added, skipped, failed);
-            }, 1000); // 1 seconde delay tussen bestanden
+            }, 500); // 500ms delay tussen bestanden
         })
         .catch(error => {
             console.error(`Upload error voor ${file.name}:`, error);
@@ -711,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Ga door naar volgende bestand
             setTimeout(() => {
                 uploadFilesSequentially(files, index + 1, added, skipped, failed);
-            }, 1000);
+            }, 500);
         });
     }
 
