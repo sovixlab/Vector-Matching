@@ -458,6 +458,15 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('CSRF token gebruikt:', csrfToken.value.substring(0, 10) + '...');
         formData.append('csrfmiddlewaretoken', csrfToken.value);
         
+        // Toon loading indicator
+        updateProgress(0, files.length, [], [], []);
+        
+        // Toon upload status
+        const progressText = document.getElementById('progress-text');
+        if (progressText) {
+            progressText.textContent = `Uploaden van ${files.length} bestanden...`;
+        }
+        
         // Upload alle bestanden tegelijk
         fetch('{% url "vector_matching_app:kandidaten_upload" %}', {
             method: 'POST',
@@ -476,6 +485,14 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Upload response data:', data);
+            
+            // Update progress bar naar 100%
+            updateProgress(files.length, files.length, 
+                data.created_candidates || [], 
+                data.skipped_duplicates || [], 
+                data.processing_errors || []
+            );
+            
             if (data.success) {
                 console.log('Upload succesvol');
                 // Reload pagina om nieuwe kandidaten te tonen
