@@ -262,6 +262,20 @@ window.csrfToken = '{{ csrf_token|escapejs }}';
 document.addEventListener('DOMContentLoaded', function() {
     console.log('JavaScript geladen');
     
+    // Debug CSRF token
+    console.log('CSRF token:', window.csrfToken ? window.csrfToken.substring(0, 10) + '...' : 'NIET GEVONDEN');
+    
+    // Fallback CSRF token zoeken
+    if (!window.csrfToken) {
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            window.csrfToken = csrfInput.value;
+            console.log('CSRF token gevonden via fallback:', window.csrfToken.substring(0, 10) + '...');
+        } else {
+            console.error('CSRF token helemaal niet gevonden!');
+        }
+    }
+    
     // DROPZONE - EENVOUDIGE VERSIE
     const dropzone = document.getElementById('upload-dropzone');
     const uploadFiles = document.getElementById('upload-files');
@@ -454,7 +468,16 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('files', file);
         
         // Voeg CSRF token toe
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfToken = window.csrfToken || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (!csrfToken) {
+            console.error('CSRF token niet gevonden!');
+            failed.push(`${file.name}: CSRF token niet gevonden`);
+            updateProgress(index + 1, files.length, added, skipped, failed);
+            setTimeout(() => {
+                uploadFilesSequentially(files, index + 1, added, skipped, failed);
+            }, 500);
+            return;
+        }
         formData.append('csrfmiddlewaretoken', csrfToken);
         
         // Upload dit bestand
@@ -689,7 +712,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('candidate_ids', candidateId);
         
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfToken = window.csrfToken || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (!csrfToken) {
+            console.error('CSRF token niet gevonden voor bulk reprocess!');
+            failed.push(`Kandidaat ${candidateId}: CSRF token niet gevonden`);
+            updateBulkProgress(index + 1, candidateIds.length, success, skipped, failed);
+            setTimeout(() => {
+                processBulkReprocess(candidateIds, index + 1, success, skipped, failed);
+            }, 1000);
+            return;
+        }
         formData.append('csrfmiddlewaretoken', csrfToken);
         
         fetch('{% url "vector_matching_app:kandidaten_bulk_reprocess" %}', {
