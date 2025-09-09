@@ -335,8 +335,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Toon progress UI
         showProgressUI(validFiles.length);
         
-        // Upload alle bestanden tegelijk (backend verwerkt ze één voor één)
+    // Upload alle bestanden tegelijk (backend verwerkt ze één voor één)
+    // Wacht even om er zeker van te zijn dat de DOM volledig geladen is
+    setTimeout(() => {
         uploadAllFiles(validFiles);
+    }, 100);
     }
     
     function showProgressUI(totalFiles) {
@@ -423,6 +426,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function uploadAllFiles(files) {
         console.log('Upload: uploadAllFiles aangeroepen met', files.length, 'bestanden');
         
+        // Controleer of CSRF token beschikbaar is
+        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfTokenElement) {
+            console.error('CSRF token not found in uploadAllFiles!');
+            console.log('Available form elements:', document.querySelectorAll('input[name]'));
+            alert('Fout: CSRF token niet gevonden. Probeer de pagina te verversen.');
+            return;
+        }
+        
         // Maak FormData voor alle bestanden
         const formData = new FormData();
         
@@ -432,13 +444,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Voeg CSRF token toe
-        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (!csrfTokenElement) {
-            console.error('CSRF token not found!');
-            alert('Fout: CSRF token niet gevonden');
-            return;
-        }
         const csrfToken = csrfTokenElement.value;
+        console.log('CSRF token gevonden:', csrfToken.substring(0, 10) + '...');
         formData.append('csrfmiddlewaretoken', csrfToken);
         
         // Upload alle bestanden tegelijk
