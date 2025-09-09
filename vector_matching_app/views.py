@@ -135,46 +135,46 @@ def kandidaten_upload_view(request):
         try:
             for i, file in enumerate(files):
                 try:
-                # Maak kandidaat aan met fallback waarden
-                candidate = Candidate.objects.create(
-                    name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
-                    email='',  # Lege string in plaats van null
-                    phone='',  # Lege string in plaats van null
-                    street='',  # Lege string in plaats van null
-                    house_number='',  # Lege string in plaats van null
-                    postal_code='',  # Lege string in plaats van null
-                    city='',  # Lege string in plaats van null
-                    cv_pdf=file,
-                    embed_status='queued'
-                )
-                
-                # Verwerk één voor één
-                try:
-                    logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
-                    process_candidate_pipeline(candidate.id)
+                    # Maak kandidaat aan met fallback waarden
+                    candidate = Candidate.objects.create(
+                        name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
+                        email='',  # Lege string in plaats van null
+                        phone='',  # Lege string in plaats van null
+                        street='',  # Lege string in plaats van null
+                        house_number='',  # Lege string in plaats van null
+                        postal_code='',  # Lege string in plaats van null
+                        city='',  # Lege string in plaats van null
+                        cv_pdf=file,
+                        embed_status='queued'
+                    )
                     
-                    # Pauze tussen bestanden om server niet te overbelasten
-                    if i < len(files) - 1:  # Niet na het laatste bestand
-                        import time
-                        time.sleep(0.5)  # 500ms pauze tussen bestanden
-                    
-                    # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
-                    candidate.refresh_from_db()
-                    if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
-                        # Verwijder de kandidaat als het een duplicaat was
-                        candidate.delete()
-                        skipped_duplicates.append(file.name)
-                        logger.info(f"Duplicaat overgeslagen: {file.name}")
-                    else:
-                        created_candidates.append(candidate)
-                        logger.info(f"Verwerking voltooid voor {file.name}")
+                    # Verwerk één voor één
+                    try:
+                        logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
+                        process_candidate_pipeline(candidate.id)
                         
-                except Exception as e:
-                    logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
-                    processing_errors.append(f'{file.name}: {str(e)}')
-                    # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
-                    created_candidates.append(candidate)
-                    
+                        # Pauze tussen bestanden om server niet te overbelasten
+                        if i < len(files) - 1:  # Niet na het laatste bestand
+                            import time
+                            time.sleep(0.5)  # 500ms pauze tussen bestanden
+                        
+                        # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
+                        candidate.refresh_from_db()
+                        if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
+                            # Verwijder de kandidaat als het een duplicaat was
+                            candidate.delete()
+                            skipped_duplicates.append(file.name)
+                            logger.info(f"Duplicaat overgeslagen: {file.name}")
+                        else:
+                            created_candidates.append(candidate)
+                            logger.info(f"Verwerking voltooid voor {file.name}")
+                            
+                    except Exception as e:
+                        logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
+                        processing_errors.append(f'{file.name}: {str(e)}')
+                        # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
+                        created_candidates.append(candidate)
+                        
                 except Exception as e:
                     logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
                     processing_errors.append(f'{file.name}: {str(e)}')
