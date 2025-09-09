@@ -312,11 +312,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Bulk reprocess form submission
-    bulkReprocessForm.addEventListener('submit', function(e) {
+    if (bulkReprocessForm) {
+        console.log('Adding event listener to bulk reprocess form');
+        bulkReprocessForm.addEventListener('submit', function(e) {
+        console.log('Bulk reprocess form submitted');
         e.preventDefault(); // Prevent form submission
         
         const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
         const ids = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        console.log('Checked boxes:', checkedBoxes.length, 'IDs:', ids);
         
         if (ids.length === 0) {
             alert('Selecteer eerst vacatures om opnieuw te embedden.');
@@ -328,28 +333,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmMessage = `Weet je zeker dat je ${ids.length} vacature(s) opnieuw wilt embedden?\n\n${titles.slice(0, 3).join('\n')}${titles.length > 3 ? '\n...' : ''}`;
         
         if (!confirm(confirmMessage)) {
+            console.log('User cancelled bulk reprocess');
             return;
         }
         
+        console.log('Starting bulk reprocess for IDs:', ids);
+        
         // Hide any existing progress bars
-        document.getElementById('update-progress').classList.add('hidden');
+        const updateProgressDiv = document.getElementById('update-progress');
+        if (updateProgressDiv) {
+            updateProgressDiv.classList.add('hidden');
+        }
         
         // Show bulk reprocess progress UI
         showBulkReprocessProgressUI(ids.length);
         
         // Make AJAX call to bulk reprocess vacatures
         bulkReprocessVacaturesAjax(ids);
-    });
+        });
+    } else {
+        console.error('Bulk reprocess form not found!');
+    }
 
     // Initial update
     updateBulkActions();
     
     // Bulk reprocess progress functions
     function showBulkReprocessProgressUI(totalVacatures) {
+        console.log('showBulkReprocessProgressUI called with totalVacatures:', totalVacatures);
+        
         const progressDiv = document.getElementById('bulk-reprocess-progress');
         const progressText = document.getElementById('bulk-reprocess-progress-text');
         const progressBar = document.getElementById('bulk-reprocess-progress-bar');
         const progressPercentage = document.getElementById('bulk-reprocess-progress-percentage');
+        
+        console.log('Progress elements found:', {
+            progressDiv: !!progressDiv,
+            progressText: !!progressText,
+            progressBar: !!progressBar,
+            progressPercentage: !!progressPercentage
+        });
+        
+        if (!progressDiv) {
+            console.error('bulk-reprocess-progress div not found!');
+            return;
+        }
         
         // Reset progress
         progressText.textContent = `0 van ${totalVacatures} vacatures verwerkt`;
@@ -361,9 +389,17 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('bulk-reprocess-skipped-list').innerHTML = '<p class="text-base-content/40">Geen vacatures overgeslagen</p>';
         document.getElementById('bulk-reprocess-failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
         
+        // Hide update progress if visible
+        const updateProgressDiv = document.getElementById('update-progress');
+        if (updateProgressDiv) {
+            updateProgressDiv.classList.add('hidden');
+        }
+        
         // Show progress UI
         progressDiv.classList.remove('hidden');
         progressDiv.scrollIntoView({ behavior: 'smooth' });
+        
+        console.log('Bulk reprocess progress UI shown');
     }
     
     function updateBulkReprocessProgress(processed, total, successList, skippedList, failedList) {
