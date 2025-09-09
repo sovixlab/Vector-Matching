@@ -162,9 +162,10 @@ def kandidaten_upload_view(request):
                         candidate.refresh_from_db()
                         if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
                             # Verwijder de kandidaat als het een duplicaat was
+                            candidate_name = candidate.name or file.name
                             candidate.delete()
-                            skipped_duplicates.append(file.name)
-                            logger.info(f"Duplicaat overgeslagen: {file.name}")
+                            skipped_duplicates.append(f"{candidate_name} (duplicaat)")
+                            logger.info(f"Duplicaat overgeslagen: {file.name} - {candidate.error_message}")
                         else:
                             created_candidates.append(candidate)
                             logger.info(f"Verwerking voltooid voor {file.name}")

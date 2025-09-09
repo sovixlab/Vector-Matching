@@ -178,15 +178,32 @@ CV tekst:
         
         # Controleer duplicaten op basis van e-mailadres (alleen als e-mail niet leeg is)
         email = extracted_data['email']
+        name = extracted_data['volledige_naam']
+        
+        # Check duplicaten op e-mailadres EN naam
+        existing_candidate = None
+        duplicate_reason = ""
+        
         if email and email.strip():
-            # Check of er al een kandidaat bestaat met dit e-mailadres
+            # Check op e-mailadres
             existing_candidate = Candidate.objects.filter(email=email).exclude(id=candidate_id).first()
             if existing_candidate:
-                logger.warning(f"Duplicaat gevonden voor e-mail {email}. Kandidaat {candidate_id} wordt gemarkeerd als duplicaat.")
-                candidate.embed_status = 'failed'
-                candidate.error_message = f"Duplicaat: E-mailadres {email} bestaat al bij kandidaat {existing_candidate.id}"
-                candidate.save(update_fields=['embed_status', 'error_message', 'updated_at'])
-                return candidate_id
+                duplicate_reason = f"E-mailadres {email} bestaat al bij kandidaat {existing_candidate.id}"
+        
+        if not existing_candidate and name and name.strip():
+            # Check op naam (case-insensitive)
+            existing_candidate = Candidate.objects.filter(
+                name__iexact=name.strip()
+            ).exclude(id=candidate_id).first()
+            if existing_candidate:
+                duplicate_reason = f"Naam '{name}' bestaat al bij kandidaat {existing_candidate.id}"
+        
+        if existing_candidate:
+            logger.warning(f"Duplicaat gevonden: {duplicate_reason}. Kandidaat {candidate_id} wordt gemarkeerd als duplicaat.")
+            candidate.embed_status = 'failed'
+            candidate.error_message = f"Duplicaat: {duplicate_reason}"
+            candidate.save(update_fields=['embed_status', 'error_message', 'updated_at'])
+            return candidate_id
         
         # Update candidate velden
         candidate.name = extracted_data['volledige_naam']
