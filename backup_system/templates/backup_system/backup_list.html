@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Backup Beheer{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-base-content">Backup Beheer</h1>
+        <div class="flex gap-4">
+            <a href="{% url 'backup_system:backup_stats' %}" class="btn btn-outline">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Statistieken
+            </a>
+        </div>
+    </div>
+
+    <!-- Nieuwe Backup Form -->
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title text-xl mb-4">Nieuwe Backup Maken</h2>
+            <form method="post" action="{% url 'backup_system:create_backup' %}">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Backup Naam</span>
+                        </label>
+                        <input type="text" name="name" class="input input-bordered" 
+                               placeholder="Backup {{ now|date:'Y-m-d H:i' }}" required>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Backup Type</span>
+                        </label>
+                        <select name="backup_type" class="select select-bordered" required>
+                            <option value="full">Volledige Backup</option>
+                            <option value="database">Alleen Database</option>
+                            <option value="files">Alleen Bestanden</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Notities</span>
+                        </label>
+                        <input type="text" name="notes" class="input input-bordered" 
+                               placeholder="Optionele notities">
+                    </div>
+                </div>
+                <div class="card-actions justify-end mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Backup Maken
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card bg-base-100 shadow-xl mb-6">
+        <div class="card-body">
+            <h3 class="card-title text-lg mb-4">Filters</h3>
+            <form method="get" class="flex gap-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Type</span>
+                    </label>
+                    <select name="type" class="select select-bordered">
+                        <option value="">Alle Types</option>
+                        {% for value, label in backup_types %}
+                            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Status</span>
+                    </label>
+                    <select name="status" class="select select-bordered">
+                        <option value="">Alle Statussen</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">&nbsp;</span>
+                    </label>
+                    <button type="submit" class="btn btn-outline">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Backup Lijst -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h3 class="card-title text-lg mb-4">Backup Geschiedenis</h3>
+            
+            {% if backups %}
+                <div class="overflow-x-auto">
+                    <table class="table table-zebra w-full">
+                        <thead>
+                            <tr>
+                                <th>Naam</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Grootte</th>
+                                <th>Aangemaakt</th>
+                                <th>Acties</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups %}
+                            <tr>
+                                <td>
+                                    <div class="font-medium">{{ backup.name }}</div>
+                                    {% if backup.notes %}
+                                        <div class="text-sm text-base-content/60">{{ backup.notes }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge badge-outline">{{ backup.get_backup_type_display }}</span>
+                                </td>
+                                <td>
+                                    {% if backup.status == 'completed' %}
+                                        <span class="badge badge-success">{{ backup.get_status_display }}</span>
+                                    {% elif backup.status == 'failed' %}
+                                        <span class="badge badge-error">{{ backup.get_status_display }}</span>
+                                    {% elif backup.status == 'running' %}
+                                        <span class="badge badge-warning">{{ backup.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge badge-ghost">{{ backup.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if backup.file_size_mb > 0 %}
+                                        {{ backup.file_size_mb }} MB
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ backup.created_at|date:"d-m-Y H:i" }}</div>
+                                    <div class="text-sm text-base-content/60">door {{ backup.created_by.username }}</div>
+                                </td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <a href="{% url 'backup_system:backup_detail' backup.pk %}" 
+                                           class="btn btn-sm btn-outline">Bekijken</a>
+                                        
+                                        {% if backup.is_completed %}
+                                            <a href="{% url 'backup_system:download_backup' backup.pk %}" 
+                                               class="btn btn-sm btn-primary">Download</a>
+                                        {% endif %}
+                                        
+                                        {% if user.is_superuser and backup.is_completed %}
+                                            <a href="{% url 'backup_system:restore_backup' backup.pk %}" 
+                                               class="btn btn-sm btn-warning">Herstel</a>
+                                        {% endif %}
+                                        
+                                        <form method="post" action="{% url 'backup_system:delete_backup' backup.pk %}" 
+                                              class="inline" onsubmit="return confirm('Weet je zeker dat je deze backup wilt verwijderen?')">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-error">Verwijder</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 mx-auto text-base-content/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-base-content/60 mb-2">Geen Backups</h3>
+                    <p class="text-base-content/40">Maak je eerste backup om te beginnen met data bescherming.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

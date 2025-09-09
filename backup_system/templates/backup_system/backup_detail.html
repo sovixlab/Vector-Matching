@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ backup.name }} - Backup Detail{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-base-content">{{ backup.name }}</h1>
+            <p class="text-base-content/60 mt-2">Backup Details</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="{% url 'backup_system:backup_list' %}" class="btn btn-outline">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Terug naar Lijst
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Backup Informatie -->
+        <div class="lg:col-span-2">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">Backup Informatie</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Naam</span>
+                            </label>
+                            <div class="text-base-content">{{ backup.name }}</div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Type</span>
+                            </label>
+                            <div>
+                                <span class="badge badge-outline">{{ backup.get_backup_type_display }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Status</span>
+                            </label>
+                            <div>
+                                {% if backup.status == 'completed' %}
+                                    <span class="badge badge-success">{{ backup.get_status_display }}</span>
+                                {% elif backup.status == 'failed' %}
+                                    <span class="badge badge-error">{{ backup.get_status_display }}</span>
+                                {% elif backup.status == 'running' %}
+                                    <span class="badge badge-warning">{{ backup.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge badge-ghost">{{ backup.get_status_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Grootte</span>
+                            </label>
+                            <div class="text-base-content">
+                                {% if backup.file_size_mb > 0 %}
+                                    {{ backup.file_size_mb }} MB
+                                {% else %}
+                                    Nog niet beschikbaar
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Aangemaakt</span>
+                            </label>
+                            <div class="text-base-content">{{ backup.created_at|date:"d-m-Y H:i:s" }}</div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Voltooid</span>
+                            </label>
+                            <div class="text-base-content">
+                                {% if backup.completed_at %}
+                                    {{ backup.completed_at|date:"d-m-Y H:i:s" }}
+                                {% else %}
+                                    Nog niet voltooid
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text font-medium">Aangemaakt door</span>
+                            </label>
+                            <div class="text-base-content">{{ backup.created_by.username }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if backup.notes %}
+                    <div class="form-control mt-4">
+                        <label class="label">
+                            <span class="label-text font-medium">Notities</span>
+                        </label>
+                        <div class="text-base-content bg-base-200 p-3 rounded-lg">{{ backup.notes }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if backup.error_message %}
+                    <div class="form-control mt-4">
+                        <label class="label">
+                            <span class="label-text font-medium text-error">Foutmelding</span>
+                        </label>
+                        <div class="text-error bg-error/10 p-3 rounded-lg">{{ backup.error_message }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Acties -->
+        <div class="space-y-6">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h3 class="card-title text-lg mb-4">Acties</h3>
+                    
+                    <div class="space-y-3">
+                        {% if backup.is_completed %}
+                            <a href="{% url 'backup_system:download_backup' backup.pk %}" 
+                               class="btn btn-primary w-full">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Download Backup
+                            </a>
+                            
+                            {% if user.is_superuser %}
+                                <a href="{% url 'backup_system:restore_backup' backup.pk %}" 
+                                   class="btn btn-warning w-full">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Herstel Backup
+                                </a>
+                            {% endif %}
+                        {% elif backup.status == 'running' %}
+                            <div class="text-center">
+                                <div class="loading loading-spinner loading-lg text-primary"></div>
+                                <p class="text-base-content/60 mt-2">Backup wordt verwerkt...</p>
+                            </div>
+                        {% elif backup.status == 'failed' %}
+                            <div class="alert alert-error">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span>Backup is mislukt</span>
+                            </div>
+                        {% else %}
+                            <div class="text-center">
+                                <div class="loading loading-dots loading-lg text-primary"></div>
+                                <p class="text-base-content/60 mt-2">Backup in wachtrij...</p>
+                            </div>
+                        {% endif %}
+                        
+                        <form method="post" action="{% url 'backup_system:delete_backup' backup.pk %}" 
+                              onsubmit="return confirm('Weet je zeker dat je deze backup wilt verwijderen?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-error w-full">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                Verwijder Backup
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Updates (voor running backups) -->
+            {% if backup.status == 'running' %}
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h3 class="card-title text-lg mb-4">Status Updates</h3>
+                    <div id="status-updates" class="text-sm text-base-content/60">
+                        <p>Backup wordt verwerkt...</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if backup.status == 'running' %}
+<script>
+// Auto-refresh status voor running backups
+setInterval(function() {
+    fetch('{% url "backup_system:backup_status" backup.pk %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'running') {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}, 5000);
+</script>
+{% endif %}
+{% endblock %}
