@@ -195,14 +195,14 @@ def kandidaten_upload_view(request):
                     # Verwerk de rest van de pipeline (embedding generatie)
                     try:
                         logger.info(f"Embedding generatie gestart voor {file.name} ({i+1}/{len(files)})")
-                        from .tasks import generate_profile_summary_text, generate_candidate_embedding
+                        from .tasks import generate_profile_summary_text, embed_profile_text
                         
                         # Genereer profiel samenvatting
                         generate_profile_summary_text(candidate.id)
                         candidate.refresh_from_db()
                         
                         # Genereer embedding
-                        generate_candidate_embedding(candidate.id)
+                        embed_profile_text(candidate.id)
                         candidate.refresh_from_db()
                         
                         # Pauze tussen bestanden om server niet te overbelasten
