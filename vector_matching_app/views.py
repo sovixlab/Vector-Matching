@@ -135,44 +135,87 @@ def kandidaten_upload_view(request):
         try:
             for i, file in enumerate(files):
                 try:
-                    # Maak kandidaat aan met fallback waarden
-                    candidate = Candidate.objects.create(
-                        name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
-                        email='',  # Lege string in plaats van null
-                        phone='',  # Lege string in plaats van null
-                        street='',  # Lege string in plaats van null
-                        house_number='',  # Lege string in plaats van null
-                        postal_code='',  # Lege string in plaats van null
-                        city='',  # Lege string in plaats van null
+                    # Eerst PDF tekst extraheren om duplicaten te kunnen detecteren
+                    logger.info(f"PDF tekst extraheren voor {file.name} ({i+1}/{len(files)})")
+                    
+                    # Tijdelijke kandidaat voor PDF verwerking
+                    temp_candidate = Candidate.objects.create(
+                        name=os.path.splitext(file.name)[0] or 'Onbekend',
+                        email='',
+                        phone='',
+                        street='',
+                        house_number='',
+                        postal_code='',
+                        city='',
                         cv_pdf=file,
-                        embed_status='queued'
+                        embed_status='processing'
                     )
                     
-                    # Verwerk één voor één
+                    # Extraheer PDF tekst
                     try:
-                        logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
-                        process_candidate_pipeline(candidate.id)
+                        from .tasks import extract_pdf_text
+                        extract_pdf_text(temp_candidate.id)
+                        temp_candidate.refresh_from_db()
+                        
+                        if not temp_candidate.cv_text:
+                            raise ValueError("Geen tekst gevonden in PDF")
+                            
+                    except Exception as e:
+                        logger.error(f"PDF extractie gefaald voor {file.name}: {str(e)}")
+                        temp_candidate.delete()
+                        processing_errors.append(f'{file.name}: PDF extractie gefaald - {str(e)}')
+                        continue
+                    
+                    # Parse CV data
+                    try:
+                        from .tasks import parse_cv_to_fields
+                        parse_cv_to_fields(temp_candidate.id)
+                        temp_candidate.refresh_from_db()
+                        
+                        # Check of het een duplicaat is
+                        if temp_candidate.embed_status == 'failed' and 'Duplicaat' in (temp_candidate.error_message or ''):
+                            # Verwijder duplicaat
+                            candidate_name = temp_candidate.name or file.name
+                            temp_candidate.delete()
+                            skipped_duplicates.append(f"{candidate_name} (duplicaat)")
+                            logger.info(f"Duplicaat overgeslagen: {file.name} - {temp_candidate.error_message}")
+                            continue
+                            
+                    except Exception as e:
+                        logger.error(f"CV parsing gefaald voor {file.name}: {str(e)}")
+                        temp_candidate.delete()
+                        processing_errors.append(f'{file.name}: CV parsing gefaald - {str(e)}')
+                        continue
+                    
+                    # Als we hier zijn, is het geen duplicaat - zet status terug naar queued
+                    temp_candidate.embed_status = 'queued'
+                    temp_candidate.save(update_fields=['embed_status'])
+                    candidate = temp_candidate
+                    
+                    # Verwerk de rest van de pipeline (embedding generatie)
+                    try:
+                        logger.info(f"Embedding generatie gestart voor {file.name} ({i+1}/{len(files)})")
+                        from .tasks import generate_profile_summary_text, generate_candidate_embedding
+                        
+                        # Genereer profiel samenvatting
+                        generate_profile_summary_text(candidate.id)
+                        candidate.refresh_from_db()
+                        
+                        # Genereer embedding
+                        generate_candidate_embedding(candidate.id)
+                        candidate.refresh_from_db()
                         
                         # Pauze tussen bestanden om server niet te overbelasten
                         if i < len(files) - 1:  # Niet na het laatste bestand
                             import time
                             time.sleep(0.5)  # 500ms pauze tussen bestanden
                         
-                        # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
-                        candidate.refresh_from_db()
-                        if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
-                            # Verwijder de kandidaat als het een duplicaat was
-                            candidate_name = candidate.name or file.name
-                            candidate.delete()
-                            skipped_duplicates.append(f"{candidate_name} (duplicaat)")
-                            logger.info(f"Duplicaat overgeslagen: {file.name} - {candidate.error_message}")
-                            # NIET toevoegen aan created_candidates!
-                        else:
-                            created_candidates.append(candidate)
-                            logger.info(f"Verwerking voltooid voor {file.name}")
+                        # Voeg toe aan succesvolle lijst
+                        created_candidates.append(candidate)
+                        logger.info(f"Verwerking voltooid voor {file.name}")
                             
                     except Exception as e:
-                        logger.error(f"Verwerking gefaald voor {file.name}: {str(e)}")
+                        logger.error(f"Embedding generatie gefaald voor {file.name}: {str(e)}")
                         processing_errors.append(f'{file.name}: {str(e)}')
                         # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
                         created_candidates.append(candidate)
