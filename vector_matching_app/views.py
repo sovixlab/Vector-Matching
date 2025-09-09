@@ -644,6 +644,7 @@ def vacatures_update_view(request):
         toegevoegd = 0
         bijgewerkt = 0
         gedeactiveerd = 0
+        fouten = 0
         
         # Verzamel alle externe IDs uit de feed
         feed_externe_ids = set()
@@ -696,6 +697,7 @@ def vacatures_update_view(request):
                     logger.info(f"Vacature bijgewerkt: {title} - {company}")
                     
             except Exception as e:
+                fouten += 1
                 logger.error(f"Fout bij verwerken vacature: {str(e)}")
                 continue
         
@@ -707,6 +709,18 @@ def vacatures_update_view(request):
             gedeactiveerd += 1
             logger.info(f"Vacature gedeactiveerd: {vacature.titel} - {vacature.organisatie}")
         
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({
+                'success': True,
+                'toegevoegd': toegevoegd,
+                'bijgewerkt': bijgewerkt,
+                'gedeactiveerd': gedeactiveerd,
+                'fouten': fouten,
+                'message': f'Vacatures bijgewerkt! Toegevoegd: {toegevoegd}, Bijgewerkt: {bijgewerkt}, Gedeactiveerd: {gedeactiveerd}'
+            })
+        
         # Toon success message
         messages.success(request, 
             f'Vacatures bijgewerkt! Toegevoegd: {toegevoegd}, '
@@ -716,12 +730,30 @@ def vacatures_update_view(request):
         
     except requests.RequestException as e:
         logger.error(f"Fout bij ophalen XML feed: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({
+                'success': False,
+                'error': f'Kon XML feed niet ophalen: {str(e)}'
+            })
         messages.error(request, f'Kon XML feed niet ophalen: {str(e)}')
     except ET.ParseError as e:
         logger.error(f"Fout bij parsen XML: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({
+                'success': False,
+                'error': f'Kon XML niet parsen: {str(e)}'
+            })
         messages.error(request, f'Kon XML niet parsen: {str(e)}')
     except Exception as e:
         logger.error(f"Onverwachte fout bij updaten vacatures: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({
+                'success': False,
+                'error': f'Onverwachte fout: {str(e)}'
+            })
         messages.error(request, f'Onverwachte fout: {str(e)}')
     
     return redirect('vector_matching_app:vacatures')

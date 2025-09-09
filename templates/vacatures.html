@@ -30,6 +30,52 @@
         </div>
     {% endif %}
 
+    <!-- Update Progress (hidden by default) -->
+    <div id="update-progress" class="card bg-info/10 border border-info/20 shadow-xl mb-6 hidden">
+        <div class="card-body">
+            <h3 class="card-title text-base-content mb-4">
+                <div class="loading loading-spinner loading-sm text-info"></div>
+                Vacatures updaten...
+            </h3>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between text-sm text-base-content/60 mb-2">
+                    <span id="update-progress-text">0 van 0 vacatures verwerkt</span>
+                    <span id="update-progress-percentage">0%</span>
+                </div>
+                <progress id="update-progress-bar" class="progress progress-info w-full" value="0" max="100"></progress>
+            </div>
+            
+            <!-- Results -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Toegevoegd -->
+                <div class="bg-success/10 border border-success/20 rounded-lg p-3">
+                    <h4 class="font-medium text-success mb-2">✅ Toegevoegd</h4>
+                    <div id="update-added-list" class="text-sm text-success/80 space-y-1">
+                        <p class="text-base-content/40">Geen vacatures toegevoegd</p>
+                    </div>
+                </div>
+                
+                <!-- Bijgewerkt -->
+                <div class="bg-info/10 border border-info/20 rounded-lg p-3">
+                    <h4 class="font-medium text-info mb-2">🔄 Bijgewerkt</h4>
+                    <div id="update-updated-list" class="text-sm text-info/80 space-y-1">
+                        <p class="text-base-content/40">Geen vacatures bijgewerkt</p>
+                    </div>
+                </div>
+                
+                <!-- Fouten -->
+                <div class="bg-error/10 border border-error/20 rounded-lg p-3">
+                    <h4 class="font-medium text-error mb-2">❌ Fouten</h4>
+                    <div id="update-failed-list" class="text-sm text-error/80 space-y-1">
+                        <p class="text-base-content/40">Geen fouten opgetreden</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Vacatures Table -->
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body">
@@ -245,10 +291,15 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBulkActions();
     
     // Update button click handler
-    const updateButton = document.querySelector('button[type="submit"]');
-    if (updateButton) {
+    const updateButtons = document.querySelectorAll('button[type="submit"]');
+    updateButtons.forEach(updateButton => {
         updateButton.addEventListener('click', function(e) {
-            // Show loading state
+            e.preventDefault(); // Prevent form submission
+            
+            // Show progress UI
+            showUpdateProgressUI();
+            
+            // Show loading state on button
             const originalText = this.innerHTML;
             this.innerHTML = `
                 <div class="loading loading-spinner loading-sm"></div>
@@ -256,12 +307,147 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             this.disabled = true;
             
-            // Re-enable after 3 seconds (fallback)
+            // Make AJAX call to update vacatures
+            updateVacaturesAjax();
+            
+            // Re-enable after 30 seconds (fallback)
             setTimeout(() => {
                 this.innerHTML = originalText;
                 this.disabled = false;
-            }, 3000);
+                hideUpdateProgressUI();
+            }, 30000);
         });
+    });
+    
+    function showUpdateProgressUI() {
+        const progressDiv = document.getElementById('update-progress');
+        const progressText = document.getElementById('update-progress-text');
+        const progressBar = document.getElementById('update-progress-bar');
+        const progressPercentage = document.getElementById('update-progress-percentage');
+        
+        progressDiv.classList.remove('hidden');
+        progressText.textContent = '0 van 0 vacatures verwerkt';
+        progressBar.value = 0;
+        progressBar.max = 100;
+        progressPercentage.textContent = '0%';
+        
+        // Reset resultaten
+        document.getElementById('update-added-list').innerHTML = '<p class="text-base-content/40">Geen vacatures toegevoegd</p>';
+        document.getElementById('update-updated-list').innerHTML = '<p class="text-base-content/40">Geen vacatures bijgewerkt</p>';
+        document.getElementById('update-failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+    }
+    
+    function hideUpdateProgressUI() {
+        const progressDiv = document.getElementById('update-progress');
+        progressDiv.classList.add('hidden');
+    }
+    
+    function updateVacaturesAjax() {
+        const progressText = document.getElementById('update-progress-text');
+        const progressBar = document.getElementById('update-progress-bar');
+        const progressPercentage = document.getElementById('update-progress-percentage');
+        
+        // Show initial progress
+        progressText.textContent = 'XML feed ophalen...';
+        progressBar.value = 10;
+        progressPercentage.textContent = '10%';
+        
+        // Make AJAX request
+        fetch('{% url "vector_matching_app:vacatures_update" %}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'csrfmiddlewaretoken=' + document.querySelector('[name=csrfmiddlewaretoken]').value
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update progress to 100%
+                progressText.textContent = 'Voltooid!';
+                progressBar.value = 100;
+                progressPercentage.textContent = '100%';
+                
+                // Show results
+                updateProgressResults(data.toegevoegd, data.bijgewerkt, data.gedeactiveerd, data.fouten);
+                
+                // Show success message
+                showMessage(data.message, 'success');
+                
+                // Reload page after 2 seconds to show updated data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                // Show error
+                progressText.textContent = 'Fout opgetreden';
+                progressBar.value = 0;
+                progressPercentage.textContent = '0%';
+                
+                document.getElementById('update-failed-list').innerHTML = `<p class="text-error">${data.error}</p>`;
+                showMessage(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            progressText.textContent = 'Fout opgetreden';
+            progressBar.value = 0;
+            progressPercentage.textContent = '0%';
+            
+            document.getElementById('update-failed-list').innerHTML = `<p class="text-error">Netwerkfout: ${error.message}</p>`;
+            showMessage(`Netwerkfout: ${error.message}`, 'error');
+        });
+    }
+    
+    function updateProgressResults(added, updated, deactivated, failed) {
+        // Update added list
+        if (added > 0) {
+            document.getElementById('update-added-list').innerHTML = `<p class="text-success">${added} vacatures toegevoegd</p>`;
+        } else {
+            document.getElementById('update-added-list').innerHTML = '<p class="text-base-content/40">Geen vacatures toegevoegd</p>';
+        }
+        
+        // Update updated list
+        if (updated > 0) {
+            document.getElementById('update-updated-list').innerHTML = `<p class="text-info">${updated} vacatures bijgewerkt</p>`;
+        } else {
+            document.getElementById('update-updated-list').innerHTML = '<p class="text-base-content/40">Geen vacatures bijgewerkt</p>';
+        }
+        
+        // Update deactivated count (we'll show this in the updated list for now)
+        if (deactivated > 0) {
+            const currentUpdated = document.getElementById('update-updated-list').innerHTML;
+            document.getElementById('update-updated-list').innerHTML = currentUpdated + `<br><span class="text-warning">${deactivated} gedeactiveerd</span>`;
+        }
+        
+        // Update failed list
+        if (failed > 0) {
+            document.getElementById('update-failed-list').innerHTML = `<p class="text-error">${failed} fouten opgetreden</p>`;
+        } else {
+            document.getElementById('update-failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+        }
+    }
+    
+    function showMessage(message, type) {
+        // Create message element
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `alert alert-${type} mb-2`;
+        messageDiv.innerHTML = `<span>${message}</span>`;
+        
+        // Insert after messages div
+        const messagesDiv = document.querySelector('.mb-6');
+        if (messagesDiv) {
+            messagesDiv.appendChild(messageDiv);
+        }
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 5000);
     }
 });
 </script>
