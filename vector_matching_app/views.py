@@ -789,10 +789,14 @@ def vacature_reprocess_view(request, vacature_id):
 def vacatures_bulk_reprocess_view(request):
     """Bulk herverwerk vacatures: genereer nieuwe samenvattingen en embeddings."""
     if request.method != 'POST':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Alleen POST requests toegestaan'})
         return redirect('vector_matching_app:vacatures')
     
     vacature_ids_str = request.POST.get('vacature_ids', '')
     if not vacature_ids_str:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Geen vacatures geselecteerd'})
         messages.error(request, 'Geen vacatures geselecteerd.')
         return redirect('vector_matching_app:vacatures')
     
@@ -801,6 +805,8 @@ def vacatures_bulk_reprocess_view(request):
         vacatures = Vacature.objects.filter(id__in=vacature_ids)
         
         if not vacatures.exists():
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'Geen geldige vacatures gevonden'})
             messages.error(request, 'Geen geldige vacatures gevonden.')
             return redirect('vector_matching_app:vacatures')
         
@@ -809,16 +815,34 @@ def vacatures_bulk_reprocess_view(request):
         
         success_count = 0
         error_count = 0
+        success_list = []
+        failed_list = []
         
         for vacature in vacatures:
             try:
                 reprocess_vacature_embedding(vacature.id)
                 success_count += 1
+                success_list.append(vacature.titel)
                 time.sleep(0.5)  # Korte pauze tussen requests
             except Exception as e:
                 logger.error(f"Fout bij herverwerken vacature {vacature.id}: {str(e)}")
                 error_count += 1
+                failed_list.append(f"{vacature.titel}: {str(e)}")
         
+        # AJAX response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'processed': success_count + error_count,
+                'total': len(vacatures),
+                'success_count': success_count,
+                'error_count': error_count,
+                'success_list': success_list,
+                'failed_list': failed_list,
+                'skipped_list': []  # No skipped items for reprocess
+            })
+        
+        # Regular form response
         if success_count > 0:
             messages.success(request, f'{success_count} vacature(s) succesvol opnieuw geëmbedded!')
         if error_count > 0:
@@ -826,6 +850,8 @@ def vacatures_bulk_reprocess_view(request):
             
     except Exception as e:
         logger.error(f"Fout bij bulk herverwerken vacatures: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': f'Fout bij bulk opnieuw embedden: {str(e)}'})
         messages.error(request, f'Fout bij bulk opnieuw embedden: {str(e)}')
     
     return redirect('vector_matching_app:vacatures')

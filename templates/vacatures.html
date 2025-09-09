@@ -76,6 +76,52 @@
         </div>
     </div>
 
+    <!-- Bulk Reprocess Progress (hidden by default) -->
+    <div id="bulk-reprocess-progress" class="card bg-warning/10 border border-warning/20 shadow-xl mb-6 hidden">
+        <div class="card-body">
+            <h3 class="card-title text-base-content mb-4">
+                <div class="loading loading-spinner loading-sm text-warning"></div>
+                Vacatures opnieuw embedden...
+            </h3>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between text-sm text-base-content/60 mb-2">
+                    <span id="bulk-reprocess-progress-text">0 van 0 vacatures verwerkt</span>
+                    <span id="bulk-reprocess-progress-percentage">0%</span>
+                </div>
+                <progress id="bulk-reprocess-progress-bar" class="progress progress-warning w-full" value="0" max="100"></progress>
+            </div>
+            
+            <!-- Results -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Succesvol -->
+                <div class="bg-success/10 border border-success/20 rounded-lg p-3">
+                    <h4 class="font-medium text-success mb-2">✅ Succesvol</h4>
+                    <div id="bulk-reprocess-success-list" class="text-sm text-success/80 space-y-1">
+                        <p class="text-base-content/40">Geen vacatures verwerkt</p>
+                    </div>
+                </div>
+                
+                <!-- Overgeslagen -->
+                <div class="bg-info/10 border border-info/20 rounded-lg p-3">
+                    <h4 class="font-medium text-info mb-2">⏭️ Overgeslagen</h4>
+                    <div id="bulk-reprocess-skipped-list" class="text-sm text-info/80 space-y-1">
+                        <p class="text-base-content/40">Geen vacatures overgeslagen</p>
+                    </div>
+                </div>
+                
+                <!-- Fouten -->
+                <div class="bg-error/10 border border-error/20 rounded-lg p-3">
+                    <h4 class="font-medium text-error mb-2">❌ Fouten</h4>
+                    <div id="bulk-reprocess-failed-list" class="text-sm text-error/80 space-y-1">
+                        <p class="text-base-content/40">Geen fouten opgetreden</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Vacatures Table -->
     <div class="card bg-base-100 shadow-xl">
         <div class="card-body">
@@ -267,28 +313,129 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Bulk reprocess form submission
     bulkReprocessForm.addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent form submission
+        
         const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
         const ids = Array.from(checkedBoxes).map(cb => cb.value);
         
         if (ids.length === 0) {
-            e.preventDefault();
             alert('Selecteer eerst vacatures om opnieuw te embedden.');
             return;
         }
-        
-        bulkVacatureIds.value = ids.join(',');
         
         // Show confirmation
         const titles = Array.from(checkedBoxes).map(cb => cb.dataset.vacatureTitle);
         const confirmMessage = `Weet je zeker dat je ${ids.length} vacature(s) opnieuw wilt embedden?\n\n${titles.slice(0, 3).join('\n')}${titles.length > 3 ? '\n...' : ''}`;
         
         if (!confirm(confirmMessage)) {
-            e.preventDefault();
+            return;
         }
+        
+        // Show bulk reprocess progress UI
+        showBulkReprocessProgressUI(ids.length);
+        
+        // Make AJAX call to bulk reprocess vacatures
+        bulkReprocessVacaturesAjax(ids);
     });
 
     // Initial update
     updateBulkActions();
+    
+    // Bulk reprocess progress functions
+    function showBulkReprocessProgressUI(totalVacatures) {
+        const progressDiv = document.getElementById('bulk-reprocess-progress');
+        const progressText = document.getElementById('bulk-reprocess-progress-text');
+        const progressBar = document.getElementById('bulk-reprocess-progress-bar');
+        const progressPercentage = document.getElementById('bulk-reprocess-progress-percentage');
+        
+        // Reset progress
+        progressText.textContent = `0 van ${totalVacatures} vacatures verwerkt`;
+        progressBar.value = 0;
+        progressPercentage.textContent = '0%';
+        
+        // Clear previous results
+        document.getElementById('bulk-reprocess-success-list').innerHTML = '<p class="text-base-content/40">Geen vacatures verwerkt</p>';
+        document.getElementById('bulk-reprocess-skipped-list').innerHTML = '<p class="text-base-content/40">Geen vacatures overgeslagen</p>';
+        document.getElementById('bulk-reprocess-failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+        
+        // Show progress UI
+        progressDiv.classList.remove('hidden');
+        progressDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function updateBulkReprocessProgress(processed, total, successList, skippedList, failedList) {
+        const progressText = document.getElementById('bulk-reprocess-progress-text');
+        const progressBar = document.getElementById('bulk-reprocess-progress-bar');
+        const progressPercentage = document.getElementById('bulk-reprocess-progress-percentage');
+        
+        const percentage = Math.round((processed / total) * 100);
+        
+        progressText.textContent = `${processed} van ${total} vacatures verwerkt`;
+        progressBar.value = percentage;
+        progressPercentage.textContent = `${percentage}%`;
+        
+        // Update result lists
+        if (successList.length > 0) {
+            document.getElementById('bulk-reprocess-success-list').innerHTML = 
+                successList.map(title => `<p class="text-success">${title}</p>`).join('');
+        }
+        
+        if (skippedList.length > 0) {
+            document.getElementById('bulk-reprocess-skipped-list').innerHTML = 
+                skippedList.map(title => `<p class="text-info">${title}</p>`).join('');
+        }
+        
+        if (failedList.length > 0) {
+            document.getElementById('bulk-reprocess-failed-list').innerHTML = 
+                failedList.map(title => `<p class="text-error">${title}</p>`).join('');
+        }
+    }
+    
+    function hideBulkReprocessProgress() {
+        const progressDiv = document.getElementById('bulk-reprocess-progress');
+        progressDiv.classList.add('hidden');
+    }
+    
+    function bulkReprocessVacaturesAjax(vacatureIds) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('vacature_ids', vacatureIds.join(','));
+        
+        fetch('{% url "vector_matching_app:vacatures_bulk_reprocess" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateBulkReprocessProgress(
+                    data.processed, 
+                    data.total, 
+                    data.success_list || [], 
+                    data.skipped_list || [], 
+                    data.failed_list || []
+                );
+                
+                // Hide progress after a delay
+                setTimeout(() => {
+                    hideBulkReprocessProgress();
+                    // Reload page to show updated data
+                    window.location.reload();
+                }, 2000);
+            } else {
+                alert('Fout bij bulk reprocess: ' + (data.error || 'Onbekende fout'));
+                hideBulkReprocessProgress();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Fout bij bulk reprocess: ' + error.message);
+            hideBulkReprocessProgress();
+        });
+    }
     
     // Update button click handler
     const updateButtons = document.querySelectorAll('button[type="submit"]');
