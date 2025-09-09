@@ -1057,3 +1057,94 @@ def api_vacatures_update_view(request):
         }, status=500)
 
 
+@login_required
+def matching_view(request):
+    """Toon matchresultaten tussen kandidaten en vacatures."""
+    
+    # Voorbeelddata voor matches (later te vervangen door echte matching logica)
+    matches = [
+        {
+            'kandidaat_naam': 'Barbara van der Berg',
+            'vacature_titel': 'Senior Software Developer',
+            'organisatie': 'TechCorp BV',
+            'matchscore': 87,
+            'afstand_km': 12.5,
+            'kandidaat_id': 1,
+            'vacature_id': 1
+        },
+        {
+            'kandidaat_naam': 'Mark Poolman',
+            'vacature_titel': 'Data Scientist',
+            'organisatie': 'DataFlow Solutions',
+            'matchscore': 92,
+            'afstand_km': 8.3,
+            'kandidaat_id': 2,
+            'vacature_id': 2
+        },
+        {
+            'kandidaat_naam': 'Hilda van Strien-Wieten',
+            'vacature_titel': 'Product Manager',
+            'organisatie': 'InnovateLab',
+            'matchscore': 78,
+            'afstand_km': 15.7,
+            'kandidaat_id': 3,
+            'vacature_id': 3
+        },
+        {
+            'kandidaat_naam': 'Jasper de Groot',
+            'vacature_titel': 'Frontend Developer',
+            'organisatie': 'WebCrafters',
+            'matchscore': 85,
+            'afstand_km': 5.2,
+            'kandidaat_id': 4,
+            'vacature_id': 4
+        },
+        {
+            'kandidaat_naam': 'Merel de Vries',
+            'vacature_titel': 'UX Designer',
+            'organisatie': 'DesignStudio',
+            'matchscore': 91,
+            'afstand_km': 22.1,
+            'kandidaat_id': 5,
+            'vacature_id': 5
+        },
+        {
+            'kandidaat_naam': 'Wesley Goedegebuure',
+            'vacature_titel': 'DevOps Engineer',
+            'organisatie': 'CloudTech',
+            'matchscore': 83,
+            'afstand_km': 18.9,
+            'kandidaat_id': 6,
+            'vacature_id': 6
+        },
+        {
+            'kandidaat_naam': 'Dennis Tanahatoe',
+            'vacature_titel': 'Backend Developer',
+            'organisatie': 'API Solutions',
+            'matchscore': 89,
+            'afstand_km': 7.4,
+            'kandidaat_id': 7,
+            'vacature_id': 7
+        },
+        {
+            'kandidaat_naam': 'Tjerk Kooistra',
+            'vacature_titel': 'Full Stack Developer',
+            'organisatie': 'CodeMasters',
+            'matchscore': 76,
+            'afstand_km': 25.3,
+            'kandidaat_id': 8,
+            'vacature_id': 8
+        }
+    ]
+    
+    # Sorteer op matchscore (hoogste eerst)
+    matches.sort(key=lambda x: x['matchscore'], reverse=True)
+    
+    context = {
+        'matches': matches,
+        'total_matches': len(matches)
+    }
+    
+    return render(request, 'matching.html', context)
+
+

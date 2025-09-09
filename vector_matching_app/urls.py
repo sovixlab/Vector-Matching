@@ -23,6 +23,9 @@ urlpatterns = [
     path('vacatures/bulk-reprocess/', views.vacatures_bulk_reprocess_view, name='vacatures_bulk_reprocess'),
     path('vacatures/update/', views.vacatures_update_view, name='vacatures_update'),
     
+    # Matching URLs
+    path('matching/', views.matching_view, name='matching'),
+    
     # API URLs
     path('api/vacatures/update/', views.api_vacatures_update_view, name='api_vacatures_update'),
     

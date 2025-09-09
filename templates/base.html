@@ -52,7 +52,7 @@
                     </svg>
                     Vacatures
                 </a>
-                <a href="#" class="btn btn-ghost" onclick="alert('Matches functionaliteit komt binnenkort!')">
+                <a href="{% url 'vector_matching_app:matching' %}" class="btn btn-ghost {% if request.resolver_match.url_name == 'matching' %}btn-active{% endif %}">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
