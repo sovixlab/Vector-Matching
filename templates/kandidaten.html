@@ -356,6 +356,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Waarschuwing voor grote uploads
+        if (validFiles.length > 50) {
+            const proceed = confirm(`Je probeert ${validFiles.length} bestanden te uploaden. Dit kan enige tijd duren. Wil je doorgaan?`);
+            if (!proceed) {
+                return;
+            }
+        }
+        
         // Toon progress UI
         showProgressUI(validFiles.length);
         
@@ -454,10 +462,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset progress
         updateProgress(0, totalFiles, [], [], []);
         
-        // Simuleer progress tijdens upload
+        // Simuleer progress tijdens upload (langzamer voor grote batches)
         let currentProgress = 0;
         const progressInterval = setInterval(() => {
-            currentProgress += Math.random() * 3; // Random progress tussen 0-3%
+            // Langzamere progress voor grote batches
+            const increment = totalFiles > 50 ? Math.random() * 1.5 : Math.random() * 3;
+            currentProgress += increment;
             if (currentProgress > 95) currentProgress = 95; // Max 95% tijdens upload
             
             const progressText = document.getElementById('progress-text');
@@ -476,10 +486,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 200);
         
-        // Stop interval na 10 seconden (fallback)
+        // Stop interval na langere tijd voor grote batches (fallback)
+        const timeout = totalFiles > 50 ? 30000 : 10000; // 30s voor >50 bestanden, 10s voor minder
         setTimeout(() => {
             clearInterval(progressInterval);
-        }, 10000);
+        }, timeout);
         
         // Store interval ID for cleanup
         window.progressInterval = progressInterval;
@@ -585,6 +596,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Upload response:', response.status);
             if (response.ok) {
                 return response.json();
+            } else if (response.status === 502) {
+                throw new Error('Server overbelast. Probeer het later opnieuw of upload minder bestanden tegelijk.');
+            } else if (response.status === 413) {
+                throw new Error('Bestanden te groot. Probeer kleinere bestanden of upload minder tegelijk.');
+            } else if (response.status === 504) {
+                throw new Error('Server timeout. Probeer het later opnieuw.');
             } else {
                 throw new Error(`Upload failed: ${response.status}`);
             }

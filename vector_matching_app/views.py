@@ -132,8 +132,9 @@ def kandidaten_upload_view(request):
         skipped_duplicates = []
         processing_errors = []
         
-        for i, file in enumerate(files):
-            try:
+        try:
+            for i, file in enumerate(files):
+                try:
                 # Maak kandidaat aan met fallback waarden
                 candidate = Candidate.objects.create(
                     name=os.path.splitext(file.name)[0] or 'Onbekend',  # Bestandsnaam zonder extensie
@@ -152,6 +153,11 @@ def kandidaten_upload_view(request):
                     logger.info(f"Verwerking gestart voor {file.name} ({i+1}/{len(files)})")
                     process_candidate_pipeline(candidate.id)
                     
+                    # Pauze tussen bestanden om server niet te overbelasten
+                    if i < len(files) - 1:  # Niet na het laatste bestand
+                        import time
+                        time.sleep(0.5)  # 500ms pauze tussen bestanden
+                    
                     # Controleer of het een duplicaat was door de kandidaat opnieuw op te halen
                     candidate.refresh_from_db()
                     if candidate.embed_status == 'failed' and 'Duplicaat' in (candidate.error_message or ''):
@@ -169,9 +175,16 @@ def kandidaten_upload_view(request):
                     # Voeg toe aan created_candidates ook bij fout, zodat het geteld wordt
                     created_candidates.append(candidate)
                     
-            except Exception as e:
-                logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
-                processing_errors.append(f'{file.name}: {str(e)}')
+                except Exception as e:
+                    logger.error(f"Fout bij uploaden van {file.name}: {str(e)}")
+                    processing_errors.append(f'{file.name}: {str(e)}')
+        
+        except Exception as e:
+            logger.error(f"Kritieke fout tijdens upload verwerking: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Server error tijdens verwerking: {str(e)}'
+            })
         
         # Return JSON response
         return JsonResponse({
