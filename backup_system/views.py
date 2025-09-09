@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+import django
 import os
 import zipfile
 import tempfile
@@ -33,22 +34,17 @@ def create_backup_sync(backup):
                 create_database_backup(db_backup_path)
                 backup_files.append(db_backup_path)
             
-            # Bestanden backup
-            if backup.backup_type in ['full', 'files']:
-                files_backup_path = os.path.join(temp_dir, 'media_files')
-                
-                # Probeer eerst via database
-                if create_files_backup_from_database(files_backup_path):
-                    backup_files.append(files_backup_path)
-                    logger.info(f"Media files backup created successfully from database: {files_backup_path}")
-                else:
-                    # Fallback naar normale methode
-                    create_files_backup(files_backup_path)
-                    if os.path.exists(files_backup_path) and os.listdir(files_backup_path):
-                        backup_files.append(files_backup_path)
-                        logger.info(f"Media files backup created successfully: {files_backup_path}")
-                    else:
-                        logger.warning("No media files found to backup")
+            # Schema backup (alleen structuur)
+            if backup.backup_type in ['full', 'schema']:
+                schema_backup_path = os.path.join(temp_dir, 'database_schema.sql')
+                create_schema_backup(schema_backup_path)
+                backup_files.append(schema_backup_path)
+            
+            # Configuratie backup
+            if backup.backup_type in ['full', 'config']:
+                config_backup_path = os.path.join(temp_dir, 'system_config')
+                create_config_backup(config_backup_path)
+                backup_files.append(config_backup_path)
             
             # Maak ZIP bestand
             zip_path = create_backup_zip(backup_files, temp_dir, backup.name)
@@ -81,7 +77,7 @@ def create_backup_sync(backup):
 
 
 def create_database_backup(output_path):
-    """Maak database backup."""
+    """Maak volledige database backup (data + structuur)."""
     db_settings = settings.DATABASES['default']
     
     if db_settings['ENGINE'] == 'django.db.backends.postgresql':
@@ -101,12 +97,109 @@ def create_database_backup(output_path):
             env['PGPASSWORD'] = db_settings['PASSWORD']
         
         subprocess.run(cmd, env=env, check=True)
+        logger.info(f"PostgreSQL database backup created: {output_path}")
         
     else:
         # SQLite backup
         db_path = db_settings['NAME']
         import shutil
         shutil.copy2(db_path, output_path)
+        logger.info(f"SQLite database backup created: {output_path}")
+
+
+def create_schema_backup(output_path):
+    """Maak database schema backup (alleen structuur, geen data)."""
+    db_settings = settings.DATABASES['default']
+    
+    if db_settings['ENGINE'] == 'django.db.backends.postgresql':
+        # PostgreSQL schema backup
+        cmd = [
+            'pg_dump',
+            '-h', db_settings['HOST'],
+            '-p', str(db_settings['PORT']),
+            '-U', db_settings['USER'],
+            '-d', db_settings['NAME'],
+            '--schema-only',  # Alleen structuur
+            '-f', output_path
+        ]
+        
+        # Set password via environment variable
+        env = os.environ.copy()
+        if db_settings['PASSWORD']:
+            env['PGPASSWORD'] = db_settings['PASSWORD']
+        
+        subprocess.run(cmd, env=env, check=True)
+        logger.info(f"PostgreSQL schema backup created: {output_path}")
+        
+    else:
+        # Voor SQLite, maak een lege database met alleen de structuur
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Export Django models naar SQL
+        output = StringIO()
+        call_command('sqlmigrate', 'vector_matching_app', '0001', stdout=output)
+        call_command('sqlmigrate', 'backup_system', '0001', stdout=output)
+        
+        with open(output_path, 'w') as f:
+            f.write(output.getvalue())
+        
+        logger.info(f"SQLite schema backup created: {output_path}")
+
+
+def create_config_backup(output_path):
+    """Maak systeem configuratie backup."""
+    os.makedirs(output_path, exist_ok=True)
+    
+    # Django settings
+    settings_file = os.path.join(output_path, 'settings.py')
+    with open(settings_file, 'w') as f:
+        f.write("# Django Settings Backup\n")
+        f.write(f"# Generated on: {timezone.now()}\n\n")
+        f.write(f"DEBUG = {settings.DEBUG}\n")
+        f.write(f"SECRET_KEY = '{settings.SECRET_KEY}'\n")
+        f.write(f"ALLOWED_HOSTS = {settings.ALLOWED_HOSTS}\n")
+        f.write(f"DATABASE_ENGINE = '{settings.DATABASES['default']['ENGINE']}'\n")
+        f.write(f"DATABASE_NAME = '{settings.DATABASES['default']['NAME']}'\n")
+        f.write(f"MEDIA_ROOT = '{settings.MEDIA_ROOT}'\n")
+        f.write(f"STATIC_ROOT = '{settings.STATIC_ROOT}'\n")
+    
+    # Requirements
+    requirements_file = os.path.join(output_path, 'requirements.txt')
+    try:
+        import subprocess
+        result = subprocess.run(['pip', 'freeze'], capture_output=True, text=True)
+        with open(requirements_file, 'w') as f:
+            f.write(result.stdout)
+    except Exception as e:
+        logger.warning(f"Could not create requirements.txt: {e}")
+        with open(requirements_file, 'w') as f:
+            f.write("# Requirements could not be generated\n")
+    
+    # Django migrations
+    migrations_dir = os.path.join(output_path, 'migrations')
+    os.makedirs(migrations_dir, exist_ok=True)
+    
+    try:
+        # Kopieer migration bestanden
+        import shutil
+        for app in ['vector_matching_app', 'backup_system']:
+            app_migrations = os.path.join(settings.BASE_DIR, app, 'migrations')
+            if os.path.exists(app_migrations):
+                dest_dir = os.path.join(migrations_dir, app)
+                shutil.copytree(app_migrations, dest_dir)
+    except Exception as e:
+        logger.warning(f"Could not copy migrations: {e}")
+    
+    # Environment info
+    env_file = os.path.join(output_path, 'environment.txt')
+    with open(env_file, 'w') as f:
+        f.write(f"Python Version: {os.sys.version}\n")
+        f.write(f"Django Version: {django.get_version()}\n")
+        f.write(f"Backup Created: {timezone.now()}\n")
+        f.write(f"Server: {os.environ.get('HOSTNAME', 'Unknown')}\n")
+    
+    logger.info(f"System configuration backup created: {output_path}")
 
 
 def create_files_backup_from_database(output_path):

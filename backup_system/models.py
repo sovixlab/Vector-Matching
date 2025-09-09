@@ -8,9 +8,10 @@ class Backup(models.Model):
     """Model voor backup records."""
     
     BACKUP_TYPES = [
-        ('full', 'Volledige Backup'),
-        ('database', 'Alleen Database'),
-        ('files', 'Alleen Bestanden'),
+        ('full', 'Volledige Systeem Backup'),
+        ('database', 'Database Structuur'),
+        ('schema', 'Alleen Schema (Geen Data)'),
+        ('config', 'Systeem Configuratie'),
     ]
     
     STATUS_CHOICES = [
