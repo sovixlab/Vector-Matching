@@ -345,16 +345,40 @@ document.addEventListener('DOMContentLoaded', function() {
         const progressBar = document.getElementById('progress-bar');
         const progressPercentage = document.getElementById('progress-percentage');
         
+        if (!progressDiv) {
+            console.error('Upload progress div not found!');
+            return;
+        }
+        
         progressDiv.classList.remove('hidden');
-        progressText.textContent = `0 van ${totalFiles} bestanden verwerkt`;
-        progressBar.value = 0;
-        progressBar.max = totalFiles;
-        progressPercentage.textContent = '0%';
+        
+        if (progressText) {
+            progressText.textContent = `0 van ${totalFiles} bestanden verwerkt`;
+        }
+        
+        if (progressBar) {
+            progressBar.value = 0;
+            progressBar.max = totalFiles;
+        }
+        
+        if (progressPercentage) {
+            progressPercentage.textContent = '0%';
+        }
         
         // Reset resultaten
-        document.getElementById('added-list').innerHTML = '<p class="text-base-content/40">Geen bestanden toegevoegd</p>';
-        document.getElementById('skipped-list').innerHTML = '<p class="text-base-content/40">Geen duplicaten gevonden</p>';
-        document.getElementById('failed-list').innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+        const addedList = document.getElementById('added-list');
+        const skippedList = document.getElementById('skipped-list');
+        const failedList = document.getElementById('failed-list');
+        
+        if (addedList) {
+            addedList.innerHTML = '<p class="text-base-content/40">Geen bestanden toegevoegd</p>';
+        }
+        if (skippedList) {
+            skippedList.innerHTML = '<p class="text-base-content/40">Geen duplicaten gevonden</p>';
+        }
+        if (failedList) {
+            failedList.innerHTML = '<p class="text-base-content/40">Geen fouten opgetreden</p>';
+        }
     }
     
     function updateProgress(current, total, added, skipped, failed) {
@@ -363,9 +387,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const progressPercentage = document.getElementById('progress-percentage');
         
         const percentage = Math.round((current / total) * 100);
-        progressText.textContent = `${current} van ${total} bestanden verwerkt`;
-        progressBar.value = current;
-        progressPercentage.textContent = `${percentage}%`;
+        
+        if (progressText) {
+            progressText.textContent = `${current} van ${total} bestanden verwerkt`;
+        }
+        
+        if (progressBar) {
+            progressBar.value = current;
+        }
+        
+        if (progressPercentage) {
+            progressPercentage.textContent = `${percentage}%`;
+        }
         
         // Update resultaten
         updateResultList('added-list', added, 'Geen bestanden toegevoegd');
@@ -375,6 +408,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function updateResultList(listId, items, emptyText) {
         const listDiv = document.getElementById(listId);
+        if (!listDiv) {
+            console.error(`Result list ${listId} not found!`);
+            return;
+        }
+        
         if (items.length === 0) {
             listDiv.innerHTML = `<p class="text-base-content/40">${emptyText}</p>`;
         } else {
@@ -394,7 +432,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Voeg CSRF token toe
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfTokenElement) {
+            console.error('CSRF token not found!');
+            alert('Fout: CSRF token niet gevonden');
+            return;
+        }
+        const csrfToken = csrfTokenElement.value;
         formData.append('csrfmiddlewaretoken', csrfToken);
         
         // Upload alle bestanden tegelijk
