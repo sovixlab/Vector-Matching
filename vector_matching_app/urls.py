@@ -8,6 +8,7 @@ urlpatterns = [
     path('healthz', views.health_check, name='health_check'),
     path('kandidaten/', views.kandidaten_list_view, name='kandidaten'),
     path('kandidaten/upload/', views.kandidaten_upload_view, name='kandidaten_upload'),
+    path('kandidaten/upload-progress/', views.upload_progress_view, name='upload_progress'),
     path('kandidaten/<int:candidate_id>/', views.kandidaat_detail_view, name='kandidaat_detail'),
     path('kandidaten/<int:candidate_id>/reprocess/', views.kandidaat_reprocess_view, name='kandidaat_reprocess'),
     path('kandidaten/<int:candidate_id>/cv/', views.kandidaat_cv_view, name='kandidaat_cv'),
