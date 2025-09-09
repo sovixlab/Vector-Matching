@@ -8,7 +8,7 @@
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-4xl font-bold text-base-content">Vacatures</h1>
-        <form method="post" action="{% url 'vector_matching_app:vacatures_update' %}" class="inline">
+        <form method="post" action="{% url 'vector_matching_app:vacatures_update' %}" id="update-form" class="inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,41 +324,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bulkReprocessForm) {
         console.log('Adding event listener to bulk reprocess form');
         bulkReprocessForm.addEventListener('submit', function(e) {
-        console.log('Bulk reprocess form submitted');
-        e.preventDefault(); // Prevent form submission
-        
-        const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
-        const ids = Array.from(checkedBoxes).map(cb => cb.value);
-        
-        console.log('Checked boxes:', checkedBoxes.length, 'IDs:', ids);
-        
-        if (ids.length === 0) {
-            alert('Selecteer eerst vacatures om opnieuw te embedden.');
-            return;
-        }
-        
-        // Show confirmation
-        const titles = Array.from(checkedBoxes).map(cb => cb.dataset.vacatureTitle);
-        const confirmMessage = `Weet je zeker dat je ${ids.length} vacature(s) opnieuw wilt embedden?\n\n${titles.slice(0, 3).join('\n')}${titles.length > 3 ? '\n...' : ''}`;
-        
-        if (!confirm(confirmMessage)) {
-            console.log('User cancelled bulk reprocess');
-            return;
-        }
-        
-        console.log('Starting bulk reprocess for IDs:', ids);
-        
-        // Hide any existing progress bars
-        const updateProgressDiv = document.getElementById('update-progress');
-        if (updateProgressDiv) {
-            updateProgressDiv.classList.add('hidden');
-        }
-        
-        // Show bulk reprocess progress UI
-        showBulkReprocessProgressUI(ids.length);
-        
-        // Make AJAX call to bulk reprocess vacatures
-        bulkReprocessVacaturesAjax(ids);
+            console.log('Bulk reprocess form submitted');
+            e.preventDefault(); // Prevent form submission
+            
+            const checkedBoxes = document.querySelectorAll('.vacature-checkbox:checked');
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            console.log('Checked boxes:', checkedBoxes.length, 'IDs:', ids);
+            
+            if (ids.length === 0) {
+                alert('Selecteer eerst vacatures om opnieuw te embedden.');
+                return;
+            }
+            
+            // Show confirmation
+            const titles = Array.from(checkedBoxes).map(cb => cb.dataset.vacatureTitle);
+            const confirmMessage = `Weet je zeker dat je ${ids.length} vacature(s) opnieuw wilt embedden?\n\n${titles.slice(0, 3).join('\n')}${titles.length > 3 ? '\n...' : ''}`;
+            
+            if (!confirm(confirmMessage)) {
+                console.log('User cancelled bulk reprocess');
+                return;
+            }
+            
+            console.log('Starting bulk reprocess for IDs:', ids);
+            
+            // Hide any existing progress bars
+            const updateProgressDiv = document.getElementById('update-progress');
+            if (updateProgressDiv) {
+                updateProgressDiv.classList.add('hidden');
+            }
+            
+            // Show bulk reprocess progress UI
+            showBulkReprocessProgressUI(ids.length);
+            
+            // Make AJAX call to bulk reprocess vacatures
+            bulkReprocessVacaturesAjax(ids);
         });
     } else {
         console.error('Bulk reprocess form not found!');
@@ -494,34 +494,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Update button click handler
-    const updateButtons = document.querySelectorAll('button[type="submit"]');
-    updateButtons.forEach(updateButton => {
-        updateButton.addEventListener('click', function(e) {
-            e.preventDefault(); // Prevent form submission
-            
-            // Show progress UI
-            showUpdateProgressUI();
-            
-            // Show loading state on button
-            const originalText = this.innerHTML;
-            this.innerHTML = `
-                <div class="loading loading-spinner loading-sm"></div>
-                Updaten...
-            `;
-            this.disabled = true;
-            
-            // Make AJAX call to update vacatures
-            updateVacaturesAjax();
-            
-            // Re-enable after 30 seconds (fallback)
+    // Update button click handler (only for the main update form)
+    const updateForm = document.getElementById('update-form');
+    if (updateForm) {
+        const updateButton = updateForm.querySelector('button[type="submit"]');
+        if (updateButton) {
+            updateButton.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent form submission
+                
+                // Show progress UI
+                showUpdateProgressUI();
+                
+                // Show loading state on button
+                const originalText = this.innerHTML;
+                this.innerHTML = `
+                    <div class="loading loading-spinner loading-sm"></div>
+                    Updaten...
+                `;
+                this.disabled = true;
+                
+                // Make AJAX call to update vacatures
+                updateVacaturesAjax();
+                
+                // Re-enable after 30 seconds (fallback)
             setTimeout(() => {
                 this.innerHTML = originalText;
                 this.disabled = false;
                 hideUpdateProgressUI();
             }, 30000);
-        });
-    });
+            });
+        }
+    }
     
     function showUpdateProgressUI() {
         const progressDiv = document.getElementById('update-progress');
