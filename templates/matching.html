@@ -19,11 +19,11 @@
                 </svg>
                 Filters (binnenkort)
             </button>
-            <button class="btn btn-primary" disabled>
+            <button id="generate-matches-btn" class="btn btn-primary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                Nieuwe Match
+                Genereer Matches
             </button>
         </div>
     </div>
@@ -221,4 +221,75 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Progress Modal -->
+<div id="generate-progress-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Matches genereren...</h3>
+        <div class="w-full bg-base-300 rounded-full h-2 mb-4">
+            <div id="generate-progress-bar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p id="generate-progress-text" class="text-sm text-base-content/60">Bezig met berekenen van matches...</p>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const generateBtn = document.getElementById('generate-matches-btn');
+    const progressModal = document.getElementById('generate-progress-modal');
+    const progressBar = document.getElementById('generate-progress-bar');
+    const progressText = document.getElementById('generate-progress-text');
+    
+    if (generateBtn) {
+        generateBtn.addEventListener('click', function() {
+            // Toon progress modal
+            progressModal.classList.add('modal-open');
+            
+            // Simuleer progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `Bezig met berekenen van matches... ${Math.round(progress)}%`;
+            }, 500);
+            
+            // Maak AJAX request
+            fetch('{% url "vector_matching_app:generate_matches" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': window.csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Voltooid!';
+                
+                setTimeout(() => {
+                    progressModal.classList.remove('modal-open');
+                    if (data.success) {
+                        // Herlaad de pagina om nieuwe matches te tonen
+                        window.location.reload();
+                    } else {
+                        alert('Fout bij genereren matches: ' + (data.error || 'Onbekende fout'));
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                clearInterval(interval);
+                progressModal.classList.remove('modal-open');
+                console.error('Error:', error);
+                alert('Fout bij genereren matches: ' + error.message);
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
+{% endblock %}
+

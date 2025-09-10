@@ -228,3 +228,42 @@ class PromptLog(models.Model):
     
     def __str__(self):
         return f"{self.prompt.name} - {self.get_action_display()} ({self.timestamp})"
+
+
+class Match(models.Model):
+    """Model voor matches tussen kandidaten en vacatures."""
+    
+    kandidaat = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='matches')
+    vacature = models.ForeignKey(Vacature, on_delete=models.CASCADE, related_name='matches')
+    score = models.FloatField(help_text="Match score tussen 0 en 100 (1 decimaal)")
+    afstand_km = models.FloatField(null=True, blank=True, help_text="Afstand in kilometers")
+    afstand_berekend = models.BooleanField(default=False, help_text="Of de afstand is berekend")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-score', '-timestamp']
+        unique_together = ['kandidaat', 'vacature']
+        indexes = [
+            models.Index(fields=['-score']),
+            models.Index(fields=['kandidaat', 'vacature']),
+        ]
+    
+    def __str__(self):
+        return f"{self.kandidaat.name} ↔ {self.vacature.titel} ({self.score:.1f}%)"
+    
+    def save(self, *args, **kwargs):
+        # Zorg dat score tussen 0 en 100 ligt en 1 decimaal heeft
+        self.score = round(max(0, min(100, self.score)), 1)
+        super().save(*args, **kwargs)
+    
+    @property
+    def score_badge_class(self):
+        """Retourneert de juiste badge class voor de score."""
+        if self.score >= 90:
+            return 'badge-success'
+        elif self.score >= 80:
+            return 'badge-info'
+        elif self.score >= 70:
+            return 'badge-warning'
+        else:
+            return 'badge-error'

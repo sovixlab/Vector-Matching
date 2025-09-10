@@ -576,3 +576,132 @@ def reprocess_vacature_embedding(vacature_id):
     except Exception as e:
         logger.error(f"Fout bij herverwerken vacature {vacature_id}: {str(e)}")
         raise
+
+
+def calculate_cosine_similarity(embedding1, embedding2):
+    """Bereken cosine similarity tussen twee embeddings."""
+    import numpy as np
+    
+    # Converteer naar numpy arrays
+    vec1 = np.array(embedding1)
+    vec2 = np.array(embedding2)
+    
+    # Bereken cosine similarity
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    
+    similarity = dot_product / (norm1 * norm2)
+    return float(similarity)
+
+
+def generate_matches():
+    """Genereer de top 250 matches op basis van cosine similarity tussen embeddings."""
+    from .models import Match
+    import numpy as np
+    
+    try:
+        logger.info("Start genereren matches...")
+        
+        # Haal alle kandidaten en vacatures op met embeddings
+        candidates = Candidate.objects.filter(
+            embedding__isnull=False,
+            embed_status='completed'
+        ).exclude(embedding=[])
+        
+        vacatures = Vacature.objects.filter(
+            embedding__isnull=False,
+            actief=True
+        ).exclude(embedding=[])
+        
+        logger.info(f"Gevonden {candidates.count()} kandidaten en {vacatures.count()} vacatures met embeddings")
+        
+        if not candidates.exists() or not vacatures.exists():
+            logger.warning("Geen kandidaten of vacatures met embeddings gevonden")
+            return
+        
+        # Bereken alle combinaties
+        matches_data = []
+        
+        for candidate in candidates:
+            if not candidate.embedding or len(candidate.embedding) == 0:
+                continue
+                
+            for vacature in vacatures:
+                if not vacature.embedding or len(vacature.embedding) == 0:
+                    continue
+                
+                try:
+                    # Bereken cosine similarity
+                    similarity = calculate_cosine_similarity(candidate.embedding, vacature.embedding)
+                    
+                    # Converteer naar percentage (0-100)
+                    score = round(similarity * 100, 1)
+                    
+                    # Alleen positieve scores behouden
+                    if score > 0:
+                        matches_data.append({
+                            'candidate': candidate,
+                            'vacature': vacature,
+                            'score': score,
+                            'similarity': similarity
+                        })
+                        
+                except Exception as e:
+                    logger.error(f"Fout bij berekenen similarity voor kandidaat {candidate.id} en vacature {vacature.id}: {str(e)}")
+                    continue
+        
+        # Sorteer op score (hoogste eerst) en neem top 250
+        matches_data.sort(key=lambda x: x['score'], reverse=True)
+        top_matches = matches_data[:250]
+        
+        logger.info(f"Gevonden {len(top_matches)} matches, opslaan in database...")
+        
+        # Verwijder bestaande matches
+        Match.objects.all().delete()
+        logger.info("Bestaande matches verwijderd")
+        
+        # Maak nieuwe matches
+        created_count = 0
+        for match_data in top_matches:
+            try:
+                match, created = Match.objects.get_or_create(
+                    kandidaat=match_data['candidate'],
+                    vacature=match_data['vacature'],
+                    defaults={
+                        'score': match_data['score'],
+                        'afstand_berekend': False
+                    }
+                )
+                
+                if created:
+                    created_count += 1
+                else:
+                    # Update bestaande match
+                    match.score = match_data['score']
+                    match.afstand_berekend = False
+                    match.save()
+                    created_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Fout bij opslaan match voor kandidaat {match_data['candidate'].id} en vacature {match_data['vacature'].id}: {str(e)}")
+                continue
+        
+        logger.info(f"Succesvol {created_count} matches opgeslagen")
+        
+        # Log statistieken
+        if created_count > 0:
+            avg_score = np.mean([m['score'] for m in top_matches])
+            max_score = max([m['score'] for m in top_matches])
+            min_score = min([m['score'] for m in top_matches])
+            
+            logger.info(f"Match statistieken - Gemiddeld: {avg_score:.1f}%, Max: {max_score:.1f}%, Min: {min_score:.1f}%")
+        
+        return created_count
+        
+    except Exception as e:
+        logger.error(f"Fout bij genereren matches: {str(e)}")
+        raise

@@ -1060,91 +1060,58 @@ def api_vacatures_update_view(request):
 @login_required
 def matching_view(request):
     """Toon matchresultaten tussen kandidaten en vacatures."""
+    from .models import Match
     
-    # Voorbeelddata voor matches (later te vervangen door echte matching logica)
-    matches = [
-        {
-            'kandidaat_naam': 'Barbara van der Berg',
-            'vacature_titel': 'Senior Software Developer',
-            'organisatie': 'TechCorp BV',
-            'matchscore': 87,
-            'afstand_km': 12.5,
-            'kandidaat_id': 1,
-            'vacature_id': 1
-        },
-        {
-            'kandidaat_naam': 'Mark Poolman',
-            'vacature_titel': 'Data Scientist',
-            'organisatie': 'DataFlow Solutions',
-            'matchscore': 92,
-            'afstand_km': 8.3,
-            'kandidaat_id': 2,
-            'vacature_id': 2
-        },
-        {
-            'kandidaat_naam': 'Hilda van Strien-Wieten',
-            'vacature_titel': 'Product Manager',
-            'organisatie': 'InnovateLab',
-            'matchscore': 78,
-            'afstand_km': 15.7,
-            'kandidaat_id': 3,
-            'vacature_id': 3
-        },
-        {
-            'kandidaat_naam': 'Jasper de Groot',
-            'vacature_titel': 'Frontend Developer',
-            'organisatie': 'WebCrafters',
-            'matchscore': 85,
-            'afstand_km': 5.2,
-            'kandidaat_id': 4,
-            'vacature_id': 4
-        },
-        {
-            'kandidaat_naam': 'Merel de Vries',
-            'vacature_titel': 'UX Designer',
-            'organisatie': 'DesignStudio',
-            'matchscore': 91,
-            'afstand_km': 22.1,
-            'kandidaat_id': 5,
-            'vacature_id': 5
-        },
-        {
-            'kandidaat_naam': 'Wesley Goedegebuure',
-            'vacature_titel': 'DevOps Engineer',
-            'organisatie': 'CloudTech',
-            'matchscore': 83,
-            'afstand_km': 18.9,
-            'kandidaat_id': 6,
-            'vacature_id': 6
-        },
-        {
-            'kandidaat_naam': 'Dennis Tanahatoe',
-            'vacature_titel': 'Backend Developer',
-            'organisatie': 'API Solutions',
-            'matchscore': 89,
-            'afstand_km': 7.4,
-            'kandidaat_id': 7,
-            'vacature_id': 7
-        },
-        {
-            'kandidaat_naam': 'Tjerk Kooistra',
-            'vacature_titel': 'Full Stack Developer',
-            'organisatie': 'CodeMasters',
-            'matchscore': 76,
-            'afstand_km': 25.3,
-            'kandidaat_id': 8,
-            'vacature_id': 8
-        }
-    ]
+    # Haal echte matches op uit de database
+    matches = Match.objects.select_related('kandidaat', 'vacature').all()[:250]
     
-    # Sorteer op matchscore (hoogste eerst)
-    matches.sort(key=lambda x: x['matchscore'], reverse=True)
+    # Converteer naar format voor template
+    matches_data = []
+    for match in matches:
+        matches_data.append({
+            'kandidaat_naam': match.kandidaat.name or f"Kandidaat {match.kandidaat.id}",
+            'vacature_titel': match.vacature.titel,
+            'organisatie': match.vacature.organisatie,
+            'matchscore': match.score,
+            'afstand_km': match.afstand_km,
+            'kandidaat_id': match.kandidaat.id,
+            'vacature_id': match.vacature.id,
+            'afstand_berekend': match.afstand_berekend,
+            'timestamp': match.timestamp
+        })
     
     context = {
-        'matches': matches,
-        'total_matches': len(matches)
+        'matches': matches_data,
+        'total_matches': len(matches_data)
     }
     
     return render(request, 'matching.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def generate_matches_view(request):
+    """Genereer nieuwe matches via AJAX."""
+    from .tasks import generate_matches
+    from django.http import JsonResponse
+    
+    try:
+        logger.info("Start genereren matches via web interface")
+        
+        # Genereer matches
+        created_count = generate_matches()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Succesvol {created_count} matches gegenereerd!',
+            'created_count': created_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Fout bij genereren matches: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Fout bij genereren matches: {str(e)}'
+        }, status=500)
 
 
