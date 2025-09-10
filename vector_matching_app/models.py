@@ -1,6 +1,6 @@
 from django.db import models
-from pgvector.django import VectorField
 from django.contrib.auth.models import User
+import json
 
 
 class Document(models.Model):
@@ -8,7 +8,7 @@ class Document(models.Model):
     
     title = models.CharField(max_length=255)
     content = models.TextField()
-    embedding = VectorField(dimensions=1536, null=True, blank=True)
+    embedding = models.JSONField(null=True, blank=True, help_text="Vector embedding (1536 dimensions)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -52,7 +52,7 @@ class Candidate(models.Model):
     profile_text = models.TextField(blank=True)  # Samenvatting voor matching
     
     # Embedding en locatie
-    embedding = VectorField(dimensions=1536, null=True, blank=True)
+    embedding = models.JSONField(null=True, blank=True, help_text="Vector embedding (1536 dimensions)")
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     

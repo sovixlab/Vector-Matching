@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',  # Use whitenoise for static files
     'django.contrib.staticfiles',
     'vector_matching_app',  # Our main app
-    'backup_system',  # Backup management system
+    # 'backup_system',  # Tijdelijk uitgeschakeld voor migraties  # Backup management system
 ]
 
 MIDDLEWARE = [
@@ -86,11 +86,20 @@ WSGI_APPLICATION = 'vector_matching.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.parse(
-        os.environ.get('DATABASE_URL', 'postgresql://user:password@localhost:5432/vector_matching')
-    )
-}
+# Database configuratie - SQLite voor lokale ontwikkeling
+if os.environ.get('DATABASE_URL'):
+    # Productie: PostgreSQL via DATABASE_URL
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+    }
+else:
+    # Lokale ontwikkeling: SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
