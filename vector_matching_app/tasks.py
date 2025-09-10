@@ -607,15 +607,30 @@ def generate_matches():
         logger.info("Start genereren matches...")
         
         # Haal alle kandidaten en vacatures op met embeddings
-        candidates = Candidate.objects.filter(
-            embedding__isnull=False,
-            embed_status='completed'
-        ).exclude(embedding=[])
-        
-        vacatures = Vacature.objects.filter(
-            embedding__isnull=False,
-            actief=True
-        ).exclude(embedding=[])
+        # Gebruik verschillende filters voor PostgreSQL (VectorField) en SQLite (JSONField)
+        try:
+            # Probeer PostgreSQL VectorField filter eerst
+            candidates = Candidate.objects.filter(
+                embedding__isnull=False,
+                embed_status='completed'
+            ).exclude(embedding=[])
+            
+            vacatures = Vacature.objects.filter(
+                embedding__isnull=False,
+                actief=True
+            ).exclude(embedding=[])
+        except Exception as e:
+            logger.warning(f"VectorField filter gefaald, probeer JSONField: {str(e)}")
+            # Fallback voor SQLite JSONField
+            candidates = Candidate.objects.filter(
+                embedding__isnull=False,
+                embed_status='completed'
+            ).exclude(embedding__isnull=True)
+            
+            vacatures = Vacature.objects.filter(
+                embedding__isnull=False,
+                actief=True
+            ).exclude(embedding__isnull=True)
         
         logger.info(f"Gevonden {candidates.count()} kandidaten en {vacatures.count()} vacatures met embeddings")
         
@@ -627,11 +642,21 @@ def generate_matches():
         matches_data = []
         
         for candidate in candidates:
-            if not candidate.embedding or len(candidate.embedding) == 0:
+            # Check of embedding bestaat en niet leeg is
+            if not candidate.embedding:
+                continue
+            if isinstance(candidate.embedding, list) and len(candidate.embedding) == 0:
+                continue
+            if isinstance(candidate.embedding, str) and candidate.embedding.strip() == '':
                 continue
                 
             for vacature in vacatures:
-                if not vacature.embedding or len(vacature.embedding) == 0:
+                # Check of embedding bestaat en niet leeg is
+                if not vacature.embedding:
+                    continue
+                if isinstance(vacature.embedding, list) and len(vacature.embedding) == 0:
+                    continue
+                if isinstance(vacature.embedding, str) and vacature.embedding.strip() == '':
                     continue
                 
                 try:
