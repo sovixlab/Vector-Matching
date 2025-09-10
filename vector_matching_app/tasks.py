@@ -581,21 +581,55 @@ def reprocess_vacature_embedding(vacature_id):
 def calculate_cosine_similarity(embedding1, embedding2):
     """Bereken cosine similarity tussen twee embeddings."""
     import numpy as np
+    import json
     
-    # Converteer naar numpy arrays
-    vec1 = np.array(embedding1)
-    vec2 = np.array(embedding2)
-    
-    # Bereken cosine similarity
-    dot_product = np.dot(vec1, vec2)
-    norm1 = np.linalg.norm(vec1)
-    norm2 = np.linalg.norm(vec2)
-    
-    if norm1 == 0 or norm2 == 0:
+    try:
+        # Zorg dat beide embeddings numpy arrays zijn
+        if isinstance(embedding1, str):
+            try:
+                embedding1 = json.loads(embedding1)
+            except json.JSONDecodeError:
+                logger.warning(f"Kon embedding1 niet parsen als JSON: {embedding1[:100]}...")
+                return 0.0
+                
+        if isinstance(embedding2, str):
+            try:
+                embedding2 = json.loads(embedding2)
+            except json.JSONDecodeError:
+                logger.warning(f"Kon embedding2 niet parsen als JSON: {embedding2[:100]}...")
+                return 0.0
+        
+        # Controleer of embeddings geldige lijsten zijn
+        if not isinstance(embedding1, (list, tuple)) or not isinstance(embedding2, (list, tuple)):
+            logger.warning(f"Embeddings zijn geen lijsten: {type(embedding1)}, {type(embedding2)}")
+            return 0.0
+            
+        if len(embedding1) == 0 or len(embedding2) == 0:
+            logger.warning("Een van de embeddings is leeg")
+            return 0.0
+            
+        vec1 = np.array(embedding1, dtype=np.float32)
+        vec2 = np.array(embedding2, dtype=np.float32)
+        
+        # Controleer of de vectoren dezelfde dimensie hebben
+        if vec1.shape != vec2.shape:
+            logger.warning(f"Embeddings hebben verschillende dimensies: {vec1.shape} vs {vec2.shape}")
+            return 0.0
+        
+        # Bereken cosine similarity
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+            
+        similarity = dot_product / (norm1 * norm2)
+        return float(similarity)
+        
+    except Exception as e:
+        logger.error(f"Fout bij berekenen cosine similarity: {str(e)}")
         return 0.0
-    
-    similarity = dot_product / (norm1 * norm2)
-    return float(similarity)
 
 
 def generate_matches():
@@ -606,22 +640,24 @@ def generate_matches():
     try:
         logger.info("Start genereren matches...")
         
-        # Haal alle kandidaten en vacatures op met embeddings
-        # Gebruik verschillende filters voor PostgreSQL (VectorField) en SQLite (JSONField)
-        try:
-            # Probeer PostgreSQL VectorField filter eerst
+        # Detecteer database type en gebruik juiste filters
+        from django.db import connection
+        
+        is_postgresql = 'postgresql' in connection.vendor
+        
+        if is_postgresql:
+            # PostgreSQL met VectorField - gebruik eenvoudigere filters
             candidates = Candidate.objects.filter(
                 embedding__isnull=False,
                 embed_status='completed'
-            ).exclude(embedding=[])
+            )
             
             vacatures = Vacature.objects.filter(
                 embedding__isnull=False,
                 actief=True
-            ).exclude(embedding=[])
-        except Exception as e:
-            logger.warning(f"VectorField filter gefaald, probeer JSONField: {str(e)}")
-            # Fallback voor SQLite JSONField
+            )
+        else:
+            # SQLite met JSONField
             candidates = Candidate.objects.filter(
                 embedding__isnull=False,
                 embed_status='completed'
@@ -649,6 +685,8 @@ def generate_matches():
                 continue
             if isinstance(candidate.embedding, str) and candidate.embedding.strip() == '':
                 continue
+            if isinstance(candidate.embedding, str) and candidate.embedding.strip() == '[]':
+                continue
                 
             for vacature in vacatures:
                 # Check of embedding bestaat en niet leeg is
@@ -657,6 +695,8 @@ def generate_matches():
                 if isinstance(vacature.embedding, list) and len(vacature.embedding) == 0:
                     continue
                 if isinstance(vacature.embedding, str) and vacature.embedding.strip() == '':
+                    continue
+                if isinstance(vacature.embedding, str) and vacature.embedding.strip() == '[]':
                     continue
                 
                 try:
