@@ -26,6 +26,7 @@ urlpatterns = [
     # Matching URLs
     path('matching/', views.matching_view, name='matching'),
     path('matching/generate/', views.generate_matches_view, name='generate_matches'),
+    path('api/match/<int:match_id>/afstand/', views.get_match_afstand, name='get_match_afstand'),
     
     # API URLs
     path('api/vacatures/update/', views.api_vacatures_update_view, name='api_vacatures_update'),

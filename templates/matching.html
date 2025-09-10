@@ -48,8 +48,9 @@
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text">Maximale afstand</span>
+                        <span id="afstand-loading-status" class="text-xs text-base-content/60">(Laden...)</span>
                     </label>
-                    <input type="range" min="0" max="100" value="50" class="range range-secondary" disabled />
+                    <input type="range" min="0" max="100" value="50" class="range range-secondary" id="afstand-filter" disabled />
                     <div class="w-full flex justify-between text-xs px-2">
                         <span>0 km</span>
                         <span>50 km</span>
@@ -123,7 +124,7 @@
                     </thead>
                     <tbody>
                         {% for match in matches %}
-                        <tr class="hover:bg-base-300">
+                        <tr class="hover:bg-base-300" data-match-id="{{ match.match_id }}">
                             <td>
                                 <div class="flex items-center space-x-3">
                                     <div class="avatar placeholder">
@@ -151,12 +152,17 @@
                                 </div>
                             </td>
                             <td class="text-center">
-                                <div class="flex items-center justify-center">
-                                    <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
-                                    <span class="font-medium">{{ match.afstand_km }} km</span>
+                                <div class="flex items-center justify-center" id="afstand-{{ match.kandidaat_id }}-{{ match.vacature_id }}">
+                                    {% if match.afstand_berekend %}
+                                        <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                        <span class="font-medium">{{ match.afstand_km|floatformat:1 }} km</span>
+                                    {% else %}
+                                        <div class="loading loading-spinner loading-sm text-primary"></div>
+                                        <span class="ml-2 text-base-content/60">Laden...</span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td class="text-center">
@@ -241,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressModal = document.getElementById('generate-progress-modal');
     const progressBar = document.getElementById('generate-progress-bar');
     const progressText = document.getElementById('generate-progress-text');
+    const afstandFilter = document.getElementById('afstand-filter');
+    const afstandLoadingStatus = document.getElementById('afstand-loading-status');
     
     // CSRF token ophalen
     function getCSRFToken() {
@@ -250,6 +258,83 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Fallback naar globale token
         return window.csrfToken || '';
+    }
+    
+    // Laad afstanden voor alle matches
+    function loadAfstanden() {
+        const afstandElements = document.querySelectorAll('[id^="afstand-"]');
+        let loadedCount = 0;
+        const totalCount = afstandElements.length;
+        
+        if (totalCount === 0) {
+            enableAfstandFilter();
+            return;
+        }
+        
+        afstandElements.forEach(element => {
+            // Zoek de match ID uit de data attribute van de rij
+            const matchId = element.closest('tr').dataset.matchId;
+            if (!matchId) {
+                console.warn('Geen match ID gevonden voor element:', element.id);
+                return;
+            }
+            
+            fetch(`/api/match/${matchId}/afstand/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    element.innerHTML = `
+                        <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span class="font-medium">${data.afstand_km} km</span>
+                    `;
+                } else {
+                    element.innerHTML = `
+                        <svg class="w-4 h-4 mr-1 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-error">Fout</span>
+                    `;
+                }
+                
+                loadedCount++;
+                if (loadedCount === totalCount) {
+                    enableAfstandFilter();
+                }
+            })
+            .catch(error => {
+                console.error('Fout bij laden afstand:', error);
+                element.innerHTML = `
+                    <svg class="w-4 h-4 mr-1 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-error">Fout</span>
+                `;
+                
+                loadedCount++;
+                if (loadedCount === totalCount) {
+                    enableAfstandFilter();
+                }
+            });
+        });
+    }
+    
+    // Activeer afstand filter
+    function enableAfstandFilter() {
+        if (afstandFilter) {
+            afstandFilter.disabled = false;
+        }
+        if (afstandLoadingStatus) {
+            afstandLoadingStatus.textContent = '(Geladen)';
+            afstandLoadingStatus.className = 'text-xs text-success';
+        }
     }
     
     if (generateBtn) {
@@ -312,6 +397,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    // Start het laden van afstanden zodra de pagina geladen is
+    loadAfstanden();
 });
 </script>
 {% endblock %}

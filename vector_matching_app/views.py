@@ -1069,6 +1069,7 @@ def matching_view(request):
     matches_data = []
     for match in matches:
         matches_data.append({
+            'match_id': match.id,
             'kandidaat_naam': match.kandidaat.name or f"Kandidaat {match.kandidaat.id}",
             'vacature_titel': match.vacature.titel,
             'organisatie': match.vacature.organisatie,
@@ -1112,6 +1113,47 @@ def generate_matches_view(request):
         return JsonResponse({
             'success': False,
             'error': f'Fout bij genereren matches: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_match_afstand(request, match_id):
+    """Haal afstand op voor een specifieke match."""
+    from .models import Match
+    
+    try:
+        match = get_object_or_404(Match, id=match_id)
+        
+        # Als afstand al berekend is, retourneer deze
+        if match.afstand_berekend and match.afstand_km is not None:
+            return JsonResponse({
+                'success': True,
+                'afstand_km': float(match.afstand_km),
+                'berekend': True
+            })
+        
+        # Bereken afstand (voor nu fictief, later met echte geolocatie)
+        # TODO: Implementeer echte afstandsberekening op basis van postcodes
+        import random
+        afstand = round(random.uniform(5, 100), 1)
+        
+        # Update match met berekende afstand
+        match.afstand_km = afstand
+        match.afstand_berekend = True
+        match.save()
+        
+        return JsonResponse({
+            'success': True,
+            'afstand_km': afstand,
+            'berekend': True
+        })
+        
+    except Exception as e:
+        logger.error(f"Fout bij ophalen afstand voor match {match_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Fout bij ophalen afstand: {str(e)}'
         }, status=500)
 
 
