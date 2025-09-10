@@ -3,6 +3,7 @@
 {% block title %}Matchresultaten - Vector Matching{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
@@ -241,8 +242,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBar = document.getElementById('generate-progress-bar');
     const progressText = document.getElementById('generate-progress-text');
     
+    // CSRF token ophalen
+    function getCSRFToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (token) {
+            return token.value;
+        }
+        // Fallback naar globale token
+        return window.csrfToken || '';
+    }
+    
     if (generateBtn) {
         generateBtn.addEventListener('click', function() {
+            const csrfToken = getCSRFToken();
+            
+            if (!csrfToken) {
+                alert('CSRF token niet gevonden. Pagina herladen...');
+                window.location.reload();
+                return;
+            }
+            
             // Toon progress modal
             progressModal.classList.add('modal-open');
             
@@ -260,11 +279,16 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('{% url "vector_matching_app:generate_matches" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': window.csrfToken,
+                    'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json',
                 },
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 clearInterval(interval);
                 progressBar.style.width = '100%';
