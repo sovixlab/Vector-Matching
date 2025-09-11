@@ -171,6 +171,7 @@
                                 <th class="text-base-content">Plaats</th>
                                 <th class="text-base-content">Postcode</th>
                                 <th class="text-base-content">Status</th>
+                                <th class="text-base-content">Embedding</th>
                                 <th class="text-base-content">URL</th>
                             </tr>
                         </thead>
@@ -201,6 +202,23 @@
                                         <span class="badge badge-success">Actief</span>
                                     {% else %}
                                         <span class="badge badge-error">Inactief</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if vacature.embedding %}
+                                        <span class="badge badge-success">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Geladen
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-warning">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Geen
+                                        </span>
                                     {% endif %}
                                 </td>
                                 <td>
