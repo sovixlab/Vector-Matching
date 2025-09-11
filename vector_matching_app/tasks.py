@@ -301,8 +301,10 @@ def embed_profile_text(candidate_id):
             logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
             raise ValueError(f"OpenAI API fout: {str(e)}")
         
-        # Sla embedding op (converteer naar lijst voor JSONField)
-        candidate.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        # Sla embedding op (converteer naar string voor vector type)
+        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        # Converteer naar string voor vector type database
+        candidate.embedding = str(embedding_list)
         candidate.save(update_fields=['embedding', 'updated_at'])
         
         logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
@@ -533,8 +535,10 @@ def generate_vacature_embedding(vacature_id):
         client = get_openai_client()
         embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
-        # Sla de embedding op (converteer naar lijst voor JSONField)
-        vacature.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        # Sla de embedding op (converteer naar string voor vector type)
+        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        # Converteer naar string voor vector type database
+        vacature.embedding = str(embedding_list)
         vacature.save()
         
         logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
@@ -587,17 +591,29 @@ def calculate_cosine_similarity(embedding1, embedding2):
         # Zorg dat beide embeddings numpy arrays zijn
         if isinstance(embedding1, str):
             try:
+                # Probeer eerst als JSON te parsen
                 embedding1 = json.loads(embedding1)
             except json.JSONDecodeError:
-                logger.warning(f"Kon embedding1 niet parsen als JSON: {embedding1[:100]}...")
-                return 0.0
+                try:
+                    # Probeer als Python literal (voor string representation van lijst)
+                    import ast
+                    embedding1 = ast.literal_eval(embedding1)
+                except (ValueError, SyntaxError):
+                    logger.warning(f"Kon embedding1 niet parsen: {embedding1[:100]}...")
+                    return 0.0
                 
         if isinstance(embedding2, str):
             try:
+                # Probeer eerst als JSON te parsen
                 embedding2 = json.loads(embedding2)
             except json.JSONDecodeError:
-                logger.warning(f"Kon embedding2 niet parsen als JSON: {embedding2[:100]}...")
-                return 0.0
+                try:
+                    # Probeer als Python literal (voor string representation van lijst)
+                    import ast
+                    embedding2 = ast.literal_eval(embedding2)
+                except (ValueError, SyntaxError):
+                    logger.warning(f"Kon embedding2 niet parsen: {embedding2[:100]}...")
+                    return 0.0
         
         # Controleer of embeddings geldige lijsten zijn
         if not isinstance(embedding1, (list, tuple)) or not isinstance(embedding2, (list, tuple)):
