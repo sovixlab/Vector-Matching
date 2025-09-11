@@ -147,12 +147,14 @@
                             <td class="text-center">
                                 <div class="flex items-center justify-center">
                                     <div class="radial-progress text-primary" style="--value:{{ match.matchscore }};" role="progressbar">
-                                        <span class="text-sm font-bold">{{ match.matchscore }}%</span>
+                                        <span class="text-sm font-bold">{{ match.matchscore|floatformat:1 }}%</span>
                                     </div>
                                 </div>
                             </td>
                             <td class="text-center">
-                                <div class="flex items-center justify-center" id="afstand-{{ match.kandidaat_id }}-{{ match.vacature_id }}">
+                                <div class="flex items-center justify-center" 
+                                     id="afstand-{{ match.kandidaat_id }}-{{ match.vacature_id }}"
+                                     data-match-id="{{ match.match_id }}">
                                     {% if match.afstand_berekend %}
                                         <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
@@ -266,14 +268,17 @@ document.addEventListener('DOMContentLoaded', function() {
         let loadedCount = 0;
         const totalCount = afstandElements.length;
         
+        console.log(`Gevonden ${totalCount} afstand elementen`);
+        
         if (totalCount === 0) {
             enableAfstandFilter();
             return;
         }
         
         afstandElements.forEach(element => {
-            // Zoek de match ID uit de data attribute van de rij
-            const matchId = element.closest('tr').dataset.matchId;
+            // Zoek de match ID uit de data attribute van het element zelf
+            const matchId = element.dataset.matchId;
+            console.log(`Element ${element.id}, matchId: ${matchId}`);
             if (!matchId) {
                 console.warn('Geen match ID gevonden voor element:', element.id);
                 return;
