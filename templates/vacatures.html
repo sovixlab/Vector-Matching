@@ -496,6 +496,13 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             console.log('Response status:', response.status);
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error(`Server returned non-JSON response (${response.status}): ${contentType}`);
+            }
+            
             return response.json();
         })
         .then(data => {
@@ -525,7 +532,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             clearInterval(progressInterval); // Stop simulatie bij fout
-            alert('Fout bij bulk reprocess: ' + error.message);
+            
+            let errorMessage = error.message;
+            if (error.message.includes('non-JSON response')) {
+                errorMessage = 'Server error: De server gaf een foutmelding terug in plaats van data. Controleer de server logs.';
+            }
+            
+            alert('Fout bij bulk reprocess: ' + errorMessage);
             hideBulkReprocessProgress();
         });
     }

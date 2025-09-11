@@ -924,7 +924,17 @@ def vacatures_bulk_reprocess_view(request):
     except Exception as e:
         logger.error(f"Fout bij bulk herverwerken vacatures: {str(e)}")
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': f'Fout bij bulk opnieuw embedden: {str(e)}'})
+            return JsonResponse({
+                'success': False, 
+                'error': f'Fout bij bulk opnieuw embedden: {str(e)}',
+                'processed': success_count + error_count,
+                'total': total_vacatures if 'total_vacatures' in locals() else 0,
+                'success_count': success_count,
+                'error_count': error_count,
+                'success_list': success_list,
+                'failed_list': failed_list,
+                'skipped_list': []
+            })
         messages.error(request, f'Fout bij bulk opnieuw embedden: {str(e)}')
     
     return redirect('vector_matching_app:vacatures')
