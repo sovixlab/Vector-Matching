@@ -301,8 +301,8 @@ def embed_profile_text(candidate_id):
             logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
             raise ValueError(f"OpenAI API fout: {str(e)}")
         
-        # Sla embedding op (direct als vector voor PostgreSQL)
-        candidate.embedding = embedding
+        # Sla embedding op - converteer naar lijst voor database compatibiliteit
+        candidate.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         candidate.save(update_fields=['embedding', 'updated_at'])
         
         logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
@@ -533,8 +533,8 @@ def generate_vacature_embedding(vacature_id):
         client = get_openai_client()
         embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
-        # Sla de embedding op (direct als vector voor PostgreSQL)
-        vacature.embedding = embedding
+        # Sla de embedding op - converteer naar lijst voor database compatibiliteit
+        vacature.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         vacature.save()
         
         logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
