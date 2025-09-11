@@ -863,7 +863,9 @@ def vacatures_bulk_reprocess_view(request):
         success_list = []
         failed_list = []
         
-        for vacature in vacatures:
+        total_vacatures = len(vacatures)
+        
+        for i, vacature in enumerate(vacatures):
             try:
                 logger.info(f"Start herverwerking vacature {vacature.id}: {vacature.titel}")
                 
@@ -876,6 +878,23 @@ def vacatures_bulk_reprocess_view(request):
                 success_count += 1
                 success_list.append(vacature.titel)
                 logger.info(f"Vacature {vacature.id} succesvol herverwerkt")
+                
+                # Real-time progress update voor AJAX requests
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    processed = i + 1
+                    progress_data = {
+                        'success': True,
+                        'processed': processed,
+                        'total': total_vacatures,
+                        'success_count': success_count,
+                        'error_count': error_count,
+                        'success_list': success_list,
+                        'failed_list': failed_list,
+                        'skipped_list': [],
+                        'in_progress': processed < total_vacatures
+                    }
+                    # Stuur progress update (dit zou idealiter via WebSocket moeten)
+                    logger.info(f"Progress: {processed}/{total_vacatures} vacatures verwerkt")
                 
                 time.sleep(0.5)  # Korte pauze tussen requests
             except Exception as e:

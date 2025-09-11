@@ -472,6 +472,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show initial progress
         updateBulkReprocessProgress(0, vacatureIds.length, [], [], []);
         
+        // Simuleer progress tijdens verwerking
+        let simulatedProgress = 0;
+        const progressInterval = setInterval(() => {
+            simulatedProgress += Math.random() * 3; // 0-3% per interval
+            if (simulatedProgress > 95) simulatedProgress = 95; // Stop bij 95%
+            
+            updateBulkReprocessProgress(
+                Math.round(simulatedProgress * vacatureIds.length / 100), 
+                vacatureIds.length, 
+                [], 
+                [], 
+                []
+            );
+        }, 200); // Update elke 200ms
+        
         fetch('{% url "vector_matching_app:vacatures_bulk_reprocess" %}', {
             method: 'POST',
             body: formData,
@@ -485,6 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log('Response data:', data);
+            clearInterval(progressInterval); // Stop simulatie
+            
             if (data.success) {
                 updateBulkReprocessProgress(
                     data.processed, 
@@ -507,6 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error:', error);
+            clearInterval(progressInterval); // Stop simulatie bij fout
             alert('Fout bij bulk reprocess: ' + error.message);
             hideBulkReprocessProgress();
         });
