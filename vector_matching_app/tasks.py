@@ -301,10 +301,8 @@ def embed_profile_text(candidate_id):
             logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
             raise ValueError(f"OpenAI API fout: {str(e)}")
         
-        # Sla embedding op (converteer naar string voor vector type)
-        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
-        # Converteer naar string voor vector type database
-        candidate.embedding = str(embedding_list)
+        # Sla embedding op (direct als vector voor database)
+        candidate.embedding = embedding
         candidate.save(update_fields=['embedding', 'updated_at'])
         
         logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
@@ -535,10 +533,8 @@ def generate_vacature_embedding(vacature_id):
         client = get_openai_client()
         embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
-        # Sla de embedding op (converteer naar string voor vector type)
-        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
-        # Converteer naar string voor vector type database
-        vacature.embedding = str(embedding_list)
+        # Sla de embedding op (direct als vector voor database)
+        vacature.embedding = embedding
         vacature.save()
         
         logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
@@ -614,6 +610,12 @@ def calculate_cosine_similarity(embedding1, embedding2):
                 except (ValueError, SyntaxError):
                     logger.warning(f"Kon embedding2 niet parsen: {embedding2[:100]}...")
                     return 0.0
+        
+        # Als het al numpy arrays zijn, converteer naar lijsten
+        if hasattr(embedding1, 'tolist'):
+            embedding1 = embedding1.tolist()
+        if hasattr(embedding2, 'tolist'):
+            embedding2 = embedding2.tolist()
         
         # Controleer of embeddings geldige lijsten zijn
         if not isinstance(embedding1, (list, tuple)) or not isinstance(embedding2, (list, tuple)):
