@@ -865,7 +865,13 @@ def vacatures_bulk_reprocess_view(request):
         
         total_vacatures = len(vacatures)
         
-        for i, vacature in enumerate(vacatures):
+        # Verwerk maximaal 20 vacatures per request om timeout te voorkomen
+        max_vacatures_per_request = 20
+        vacatures_to_process = vacatures[:max_vacatures_per_request]
+        
+        logger.info(f"Verwerk {len(vacatures_to_process)} van {total_vacatures} vacatures in deze request")
+        
+        for i, vacature in enumerate(vacatures_to_process):
             try:
                 logger.info(f"Start herverwerking vacature {vacature.id}: {vacature.titel}")
                 
@@ -879,28 +885,17 @@ def vacatures_bulk_reprocess_view(request):
                 success_list.append(vacature.titel)
                 logger.info(f"Vacature {vacature.id} succesvol herverwerkt")
                 
-                # Real-time progress update voor AJAX requests
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    processed = i + 1
-                    progress_data = {
-                        'success': True,
-                        'processed': processed,
-                        'total': total_vacatures,
-                        'success_count': success_count,
-                        'error_count': error_count,
-                        'success_list': success_list,
-                        'failed_list': failed_list,
-                        'skipped_list': [],
-                        'in_progress': processed < total_vacatures
-                    }
-                    # Stuur progress update (dit zou idealiter via WebSocket moeten)
-                    logger.info(f"Progress: {processed}/{total_vacatures} vacatures verwerkt")
-                
-                time.sleep(0.5)  # Korte pauze tussen requests
+                time.sleep(0.2)  # Korte pauze tussen requests
             except Exception as e:
                 logger.error(f"Fout bij herverwerken vacature {vacature.id}: {str(e)}")
                 error_count += 1
                 failed_list.append(f"{vacature.titel}: {str(e)}")
+        
+        # Als er nog vacatures over zijn, stuur een melding
+        remaining_vacatures = total_vacatures - len(vacatures_to_process)
+        if remaining_vacatures > 0:
+            logger.info(f"Nog {remaining_vacatures} vacatures over voor volgende request")
+            success_list.append(f"... en {remaining_vacatures} vacatures wachten op volgende batch")
         
         # AJAX response
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

@@ -518,12 +518,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.failed_list || []
                 );
                 
-                // Hide progress after a delay
-                setTimeout(() => {
-                    hideBulkReprocessProgress();
-                    // Reload page to show updated data
-                    window.location.reload();
-                }, 3000);
+                // Check if there are remaining vacatures to process
+                const remainingVacatures = data.total - data.processed;
+                if (remainingVacatures > 0) {
+                    // Continue with next batch after a short delay
+                    setTimeout(() => {
+                        console.log(`Continuing with next batch: ${remainingVacatures} vacatures remaining`);
+                        bulkReprocessVacaturesAjax(vacatureIds.slice(data.processed));
+                    }, 1000);
+                } else {
+                    // All done, hide progress and reload
+                    setTimeout(() => {
+                        hideBulkReprocessProgress();
+                        window.location.reload();
+                    }, 2000);
+                }
             } else {
                 alert('Fout bij bulk reprocess: ' + (data.error || 'Onbekende fout'));
                 hideBulkReprocessProgress();
