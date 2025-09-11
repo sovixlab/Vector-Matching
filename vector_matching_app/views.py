@@ -830,99 +830,63 @@ def vacature_reprocess_view(request, vacature_id):
     return redirect('vector_matching_app:vacature_detail', vacature_id=vacature_id)
 
 
+@require_http_methods(["POST"])
 @login_required
 def vacatures_bulk_reprocess_view(request):
-    """Bulk herverwerk vacatures: genereer nieuwe samenvattingen en embeddings."""
-    if request.method != 'POST':
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'Alleen POST requests toegestaan'})
-        return redirect('vector_matching_app:vacatures')
-    
-    vacature_ids_str = request.POST.get('vacature_ids', '')
-    if not vacature_ids_str:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'error': 'Geen vacatures geselecteerd'})
-        messages.error(request, 'Geen vacatures geselecteerd.')
-        return redirect('vector_matching_app:vacatures')
-    
+    """Herstart de embedding voor meerdere vacatures tegelijk."""
     try:
-        vacature_ids = [int(id.strip()) for id in vacature_ids_str.split(',') if id.strip()]
-        vacatures = Vacature.objects.filter(id__in=vacature_ids)
+        vacature_ids = request.POST.getlist('vacature_ids')
         
-        if not vacatures.exists():
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'error': 'Geen geldige vacatures gevonden'})
-            messages.error(request, 'Geen geldige vacatures gevonden.')
+        if not vacature_ids:
+            messages.warning(request, 'Geen vacatures geselecteerd.')
             return redirect('vector_matching_app:vacatures')
         
-        from .tasks import generate_vacature_summary, generate_vacature_embedding
-        import time
+        processed_count = 0
+        failed_count = 0
+        failed_vacatures = []
         
-        success_count = 0
-        error_count = 0
-        success_list = []
-        failed_list = []
-        
-        total_vacatures = len(vacatures)
-        
-        # Verwerk alle vacatures in één keer
-        vacatures_to_process = vacatures
-        
-        logger.info(f"Verwerk {len(vacatures_to_process)} vacatures in deze request")
-        
-        for i, vacature in enumerate(vacatures_to_process):
+        for vacature_id in vacature_ids:
             try:
-                logger.info(f"Start herverwerking vacature {vacature.id}: {vacature.titel}")
+                vacature = Vacature.objects.get(id=vacature_id)
                 
-                # Stap 1: Genereer nieuwe samenvatting
-                generate_vacature_summary(vacature.id)
+                # Controleer of beschrijving beschikbaar is
+                if not vacature.beschrijving:
+                    failed_count += 1
+                    failed_vacatures.append(f"{vacature.titel or f'Vacature {vacature_id}'}: Geen beschrijving")
+                    continue
                 
-                # Stap 2: Genereer nieuwe embedding
-                generate_vacature_embedding(vacature.id)
+                # Start opnieuw embedden
+                from .tasks import generate_vacature_summary, generate_vacature_embedding
+                generate_vacature_summary(vacature_id)
+                generate_vacature_embedding(vacature_id)
+                processed_count += 1
                 
-                success_count += 1
-                success_list.append(vacature.titel)
-                logger.info(f"Vacature {vacature.id} succesvol herverwerkt")
+                # Korte pauze tussen vacatures
+                import time
+                time.sleep(0.5)
                 
-                time.sleep(0.2)  # Korte pauze tussen requests
+            except Vacature.DoesNotExist:
+                failed_count += 1
+                failed_vacatures.append(f"Vacature {vacature_id}: Niet gevonden")
+                continue
             except Exception as e:
-                logger.error(f"Fout bij herverwerken vacature {vacature.id}: {str(e)}")
-                error_count += 1
-                failed_list.append(f"{vacature.titel}: {str(e)}")
+                failed_count += 1
+                vacature_title = vacature.titel if 'vacature' in locals() else f"Vacature {vacature_id}"
+                failed_vacatures.append(f"{vacature_title}: {str(e)}")
+                continue
         
-        # AJAX response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'processed': success_count + error_count,
-                'total': total_vacatures,
-                'success_count': success_count,
-                'error_count': error_count,
-                'success_list': success_list,
-                'failed_list': failed_list,
-                'skipped_list': []  # No skipped items for reprocess
-            })
+        # Toon resultaten
+        if processed_count > 0:
+            messages.success(request, f'{processed_count} vacature(s) succesvol opnieuw geëmbedded.')
         
-        # Regular form response
-        if success_count > 0:
-            messages.success(request, f'{success_count} vacature(s) succesvol opnieuw geëmbedded!')
-        if error_count > 0:
-            messages.error(request, f'{error_count} vacature(s) gefaald bij opnieuw embedden.')
+        if failed_count > 0:
+            error_msg = f'{failed_count} vacature(s) gefaald: ' + '; '.join(failed_vacatures[:5])
+            if len(failed_vacatures) > 5:
+                error_msg += f' ... en {len(failed_vacatures) - 5} meer'
+            messages.error(request, error_msg)
             
     except Exception as e:
         logger.error(f"Fout bij bulk herverwerken vacatures: {str(e)}")
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False, 
-                'error': f'Fout bij bulk opnieuw embedden: {str(e)}',
-                'processed': success_count + error_count,
-                'total': total_vacatures if 'total_vacatures' in locals() else 0,
-                'success_count': success_count,
-                'error_count': error_count,
-                'success_list': success_list,
-                'failed_list': failed_list,
-                'skipped_list': []
-            })
         messages.error(request, f'Fout bij bulk opnieuw embedden: {str(e)}')
     
     return redirect('vector_matching_app:vacatures')

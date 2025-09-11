@@ -372,11 +372,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateProgressDiv.classList.add('hidden');
             }
             
-            // Show bulk reprocess progress UI
-            showBulkReprocessProgressUI(ids.length);
-            
-            // Make AJAX call to bulk reprocess vacatures
-            bulkReprocessVacaturesAjax(ids);
+            // Start bulk reprocess
+            startBulkReprocess(selectedCheckboxes);
         });
     } else {
         console.error('Bulk reprocess form not found!');
@@ -462,88 +459,83 @@ document.addEventListener('DOMContentLoaded', function() {
         progressDiv.classList.add('hidden');
     }
     
-    function bulkReprocessVacaturesAjax(vacatureIds) {
-        console.log('Starting bulk reprocess for vacatures:', vacatureIds);
+    function startBulkReprocess(selectedCheckboxes) {
+        const vacatureIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        const totalCount = vacatureIds.length;
         
+        // Show progress UI
+        showBulkReprocessProgressUI(totalCount);
+        
+        // Process vacatures one by one
+        processBulkReprocess(vacatureIds, 0, [], [], []);
+    }
+    
+    function processBulkReprocess(vacatureIds, index, success, skipped, failed) {
+        if (index >= vacatureIds.length) {
+            // All vacatures processed
+            console.log('Bulk reprocess completed:', { success, skipped, failed });
+            
+            // Show final result and reload after delay
+            setTimeout(() => {
+                if (success.length > 0 || skipped.length > 0 || failed.length > 0) {
+                    window.location.reload();
+                }
+            }, 3000);
+            return;
+        }
+        
+        const vacatureId = vacatureIds[index];
+        console.log(`Processing vacature ${index + 1}/${vacatureIds.length}: ${vacatureId}`);
+        
+        // Make AJAX request for this vacature
         const formData = new FormData();
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-        formData.append('vacature_ids', vacatureIds.join(','));
+        formData.append('vacature_ids', vacatureId);
         
-        // Show initial progress
-        updateBulkReprocessProgress(0, vacatureIds.length, [], [], []);
-        
-        // Simuleer geleidelijke progress zoals bij kandidaten
-        let currentProgress = 0;
-        const totalVacatures = vacatureIds.length;
-        const progressInterval = setInterval(() => {
-            // Langzame, realistische progressie
-            currentProgress += Math.random() * 2 + 0.5; // 0.5-2.5% per interval
-            if (currentProgress > 95) currentProgress = 95; // Stop bij 95%
-            
-            const processedCount = Math.round((currentProgress / 100) * totalVacatures);
-            
-            updateBulkReprocessProgress(
-                processedCount, 
-                totalVacatures, 
-                [], 
-                [], 
-                []
-            );
-        }, 200); // Update elke 200ms
+        const csrfToken = window.csrfToken || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (!csrfToken) {
+            console.error('CSRF token niet gevonden voor bulk reprocess!');
+            failed.push(`Vacature ${vacatureId}: CSRF token niet gevonden`);
+            updateBulkReprocessProgress(index + 1, vacatureIds.length, success, skipped, failed);
+            setTimeout(() => {
+                processBulkReprocess(vacatureIds, index + 1, success, skipped, failed);
+            }, 1000);
+            return;
+        }
+        formData.append('csrfmiddlewaretoken', csrfToken);
         
         fetch('{% url "vector_matching_app:vacatures_bulk_reprocess" %}', {
             method: 'POST',
             body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-CSRFToken': csrfToken
             }
         })
         .then(response => {
-            console.log('Response status:', response.status);
-            
-            // Check if response is JSON
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error(`Server returned non-JSON response (${response.status}): ${contentType}`);
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error(`Request failed: ${response.status}`);
             }
-            
-            return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
-            clearInterval(progressInterval); // Stop simulatie
+            console.log(`Success for vacature ${vacatureId}`);
+            success.push(`Vacature ${vacatureId}`);
+            updateBulkReprocessProgress(index + 1, vacatureIds.length, success, skipped, failed);
             
-            if (data.success) {
-                // Toon 100% progress
-                updateBulkReprocessProgress(
-                    totalVacatures, 
-                    totalVacatures, 
-                    data.success_list || [], 
-                    data.skipped_list || [], 
-                    data.failed_list || []
-                );
-                
-                // Hide progress after a delay and reload
-                setTimeout(() => {
-                    hideBulkReprocessProgress();
-                    window.location.reload();
-                }, 2000);
-            } else {
-                alert('Fout bij bulk reprocess: ' + (data.error || 'Onbekende fout'));
-                hideBulkReprocessProgress();
-            }
+            // Continue to next vacature
+            setTimeout(() => {
+                processBulkReprocess(vacatureIds, index + 1, success, skipped, failed);
+            }, 1000); // 1 second delay between vacatures
         })
         .catch(error => {
-            console.error('Error:', error);
-            clearInterval(progressInterval); // Stop simulatie bij fout
+            console.error(`Error for vacature ${vacatureId}:`, error);
+            failed.push(`Vacature ${vacatureId}: ${error.message}`);
+            updateBulkReprocessProgress(index + 1, vacatureIds.length, success, skipped, failed);
             
-            let errorMessage = error.message;
-            if (error.message.includes('non-JSON response')) {
-                errorMessage = 'Server error: De server gaf een foutmelding terug in plaats van data. Controleer de server logs.';
-            }
-            
-            alert('Fout bij bulk reprocess: ' + errorMessage);
-            hideBulkReprocessProgress();
+            // Continue to next vacature
+            setTimeout(() => {
+                processBulkReprocess(vacatureIds, index + 1, success, skipped, failed);
+            }, 1000);
         });
     }
     
