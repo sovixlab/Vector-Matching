@@ -865,11 +865,10 @@ def vacatures_bulk_reprocess_view(request):
         
         total_vacatures = len(vacatures)
         
-        # Verwerk maximaal 20 vacatures per request om timeout te voorkomen
-        max_vacatures_per_request = 20
-        vacatures_to_process = vacatures[:max_vacatures_per_request]
+        # Verwerk alle vacatures in één keer
+        vacatures_to_process = vacatures
         
-        logger.info(f"Verwerk {len(vacatures_to_process)} van {total_vacatures} vacatures in deze request")
+        logger.info(f"Verwerk {len(vacatures_to_process)} vacatures in deze request")
         
         for i, vacature in enumerate(vacatures_to_process):
             try:
@@ -891,18 +890,12 @@ def vacatures_bulk_reprocess_view(request):
                 error_count += 1
                 failed_list.append(f"{vacature.titel}: {str(e)}")
         
-        # Als er nog vacatures over zijn, stuur een melding
-        remaining_vacatures = total_vacatures - len(vacatures_to_process)
-        if remaining_vacatures > 0:
-            logger.info(f"Nog {remaining_vacatures} vacatures over voor volgende request")
-            success_list.append(f"... en {remaining_vacatures} vacatures wachten op volgende batch")
-        
         # AJAX response
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': True,
                 'processed': success_count + error_count,
-                'total': len(vacatures),
+                'total': total_vacatures,
                 'success_count': success_count,
                 'error_count': error_count,
                 'success_list': success_list,

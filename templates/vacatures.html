@@ -472,15 +472,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show initial progress
         updateBulkReprocessProgress(0, vacatureIds.length, [], [], []);
         
-        // Simuleer progress tijdens verwerking
-        let simulatedProgress = 0;
+        // Simuleer geleidelijke progress zoals bij kandidaten
+        let currentProgress = 0;
+        const totalVacatures = vacatureIds.length;
         const progressInterval = setInterval(() => {
-            simulatedProgress += Math.random() * 3; // 0-3% per interval
-            if (simulatedProgress > 95) simulatedProgress = 95; // Stop bij 95%
+            // Langzame, realistische progressie
+            currentProgress += Math.random() * 2 + 0.5; // 0.5-2.5% per interval
+            if (currentProgress > 95) currentProgress = 95; // Stop bij 95%
+            
+            const processedCount = Math.round((currentProgress / 100) * totalVacatures);
             
             updateBulkReprocessProgress(
-                Math.round(simulatedProgress * vacatureIds.length / 100), 
-                vacatureIds.length, 
+                processedCount, 
+                totalVacatures, 
                 [], 
                 [], 
                 []
@@ -510,29 +514,20 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(progressInterval); // Stop simulatie
             
             if (data.success) {
+                // Toon 100% progress
                 updateBulkReprocessProgress(
-                    data.processed, 
-                    data.total, 
+                    totalVacatures, 
+                    totalVacatures, 
                     data.success_list || [], 
                     data.skipped_list || [], 
                     data.failed_list || []
                 );
                 
-                // Check if there are remaining vacatures to process
-                const remainingVacatures = data.total - data.processed;
-                if (remainingVacatures > 0) {
-                    // Continue with next batch after a short delay
-                    setTimeout(() => {
-                        console.log(`Continuing with next batch: ${remainingVacatures} vacatures remaining`);
-                        bulkReprocessVacaturesAjax(vacatureIds.slice(data.processed));
-                    }, 1000);
-                } else {
-                    // All done, hide progress and reload
-                    setTimeout(() => {
-                        hideBulkReprocessProgress();
-                        window.location.reload();
-                    }, 2000);
-                }
+                // Hide progress after a delay and reload
+                setTimeout(() => {
+                    hideBulkReprocessProgress();
+                    window.location.reload();
+                }, 2000);
             } else {
                 alert('Fout bij bulk reprocess: ' + (data.error || 'Onbekende fout'));
                 hideBulkReprocessProgress();
