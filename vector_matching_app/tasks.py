@@ -301,9 +301,21 @@ def embed_profile_text(candidate_id):
             logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
             raise ValueError(f"OpenAI API fout: {str(e)}")
         
-        # Sla embedding op - converteer naar lijst voor database compatibiliteit
-        candidate.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
-        candidate.save(update_fields=['embedding', 'updated_at'])
+        # Sla embedding op - gebruik raw SQL voor PostgreSQL vector type
+        from django.db import connection
+        
+        # Converteer naar lijst
+        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        
+        # Gebruik raw SQL om vector op te slaan
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE vector_matching_app_candidate SET embedding = %s::vector WHERE id = %s",
+                [embedding_list, candidate_id]
+            )
+        
+        # Update alleen de timestamp via Django ORM
+        candidate.save(update_fields=['updated_at'])
         
         logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
         return candidate_id
@@ -533,9 +545,21 @@ def generate_vacature_embedding(vacature_id):
         client = get_openai_client()
         embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
-        # Sla de embedding op - converteer naar lijst voor database compatibiliteit
-        vacature.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
-        vacature.save()
+        # Sla de embedding op - gebruik raw SQL voor PostgreSQL vector type
+        from django.db import connection
+        
+        # Converteer naar lijst
+        embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
+        
+        # Gebruik raw SQL om vector op te slaan
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE vector_matching_app_vacature SET embedding = %s::vector WHERE id = %s",
+                [embedding_list, vacature_id]
+            )
+        
+        # Update alleen de timestamp via Django ORM
+        vacature.save(update_fields=['updated_at'])
         
         logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
         return embedding
