@@ -147,3 +147,6 @@ static/css/tailwind.css
 # OS
 .DS_Store
 Thumbs.db
+
+# Backup directory - exclude all backup files
+backups/
