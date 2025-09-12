@@ -89,6 +89,14 @@
 
     <!-- Matches Table -->
     <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="card-title text-base-content">Matches</h2>
+                <div class="text-sm text-base-content/60" id="match-counter">
+                    {{ matches|length }} matches
+                </div>
+            </div>
+        </div>
         <div class="card-body p-0">
             <div class="overflow-x-auto">
                 <table class="table table-zebra w-full">
@@ -124,7 +132,7 @@
                     </thead>
                     <tbody>
                         {% for match in matches %}
-                        <tr class="hover:bg-base-300" data-match-id="{{ match.match_id }}">
+                        <tr class="hover:bg-base-300 match-card" data-match-id="{{ match.match_id }}">
                             <td>
                                 <div class="flex items-center space-x-3">
                                     <div class="avatar placeholder">
@@ -266,14 +274,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadAfstanden() {
         const afstandElements = document.querySelectorAll('[id^="afstand-"]');
         let loadedCount = 0;
+        let errorCount = 0;
         const totalCount = afstandElements.length;
         
         console.log(`Gevonden ${totalCount} afstand elementen`);
+        
+        // Update loading status
+        updateLoadingStatus(loadedCount, totalCount);
         
         if (totalCount === 0) {
             enableAfstandFilter();
             return;
         }
+        
+        // Toon loading indicator voor alle elementen
+        afstandElements.forEach(element => {
+            element.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 mr-1 text-base-content/40 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span class="text-base-content/40">Laden...</span>
+                </div>
+            `;
+        });
         
         afstandElements.forEach(element => {
             // Zoek de match ID uit de data attribute van het element zelf
@@ -281,6 +305,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`Element ${element.id}, matchId: ${matchId}`);
             if (!matchId) {
                 console.warn('Geen match ID gevonden voor element:', element.id);
+                element.innerHTML = `
+                    <svg class="w-4 h-4 mr-1 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-error">Geen ID</span>
+                `;
+                loadedCount++;
+                errorCount++;
+                updateLoadingStatus(loadedCount, totalCount);
+                if (loadedCount === totalCount) {
+                    enableAfstandFilter(errorCount);
+                }
                 return;
             }
             
@@ -290,7 +326,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRFToken': getCSRFToken(),
                 },
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     element.innerHTML = `
@@ -307,11 +348,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         </svg>
                         <span class="text-error">Fout</span>
                     `;
+                    errorCount++;
                 }
                 
                 loadedCount++;
+                updateLoadingStatus(loadedCount, totalCount);
                 if (loadedCount === totalCount) {
-                    enableAfstandFilter();
+                    enableAfstandFilter(errorCount);
                 }
             })
             .catch(error => {
@@ -322,23 +365,85 @@ document.addEventListener('DOMContentLoaded', function() {
                     </svg>
                     <span class="text-error">Fout</span>
                 `;
-                
+                errorCount++;
                 loadedCount++;
+                updateLoadingStatus(loadedCount, totalCount);
                 if (loadedCount === totalCount) {
-                    enableAfstandFilter();
+                    enableAfstandFilter(errorCount);
                 }
             });
         });
     }
     
+    // Update loading status
+    function updateLoadingStatus(loaded, total) {
+        if (afstandLoadingStatus) {
+            const percentage = Math.round((loaded / total) * 100);
+            afstandLoadingStatus.textContent = `(Laden... ${loaded}/${total} - ${percentage}%)`;
+        }
+    }
+    
     // Activeer afstand filter
-    function enableAfstandFilter() {
+    function enableAfstandFilter(errorCount = 0) {
         if (afstandFilter) {
             afstandFilter.disabled = false;
         }
         if (afstandLoadingStatus) {
-            afstandLoadingStatus.textContent = '(Geladen)';
-            afstandLoadingStatus.className = 'text-xs text-success';
+            if (errorCount === 0) {
+                afstandLoadingStatus.textContent = '(Geladen)';
+                afstandLoadingStatus.className = 'text-xs text-success';
+            } else {
+                afstandLoadingStatus.textContent = `(Geladen - ${errorCount} fouten)`;
+                afstandLoadingStatus.className = 'text-xs text-warning';
+            }
+        }
+        
+        // Voeg event listener toe voor afstand filter
+        if (afstandFilter) {
+            afstandFilter.addEventListener('input', function() {
+                const maxAfstand = parseInt(this.value);
+                filterMatchesByAfstand(maxAfstand);
+            });
+        }
+    }
+    
+    // Filter matches op basis van afstand
+    function filterMatchesByAfstand(maxAfstand) {
+        const matchCards = document.querySelectorAll('.match-card');
+        
+        matchCards.forEach(card => {
+            const afstandElement = card.querySelector('[id^="afstand-"]');
+            if (!afstandElement) return;
+            
+            // Zoek de afstand waarde uit de tekst
+            const afstandText = afstandElement.textContent;
+            const afstandMatch = afstandText.match(/(\d+(?:\.\d+)?)\s*km/);
+            
+            if (afstandMatch) {
+                const afstand = parseFloat(afstandMatch[1]);
+                if (afstand <= maxAfstand) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            } else {
+                // Als geen afstand gevonden, verberg de card
+                card.style.display = 'none';
+            }
+        });
+        
+        // Update counter
+        updateMatchCounter();
+    }
+    
+    // Update match counter
+    function updateMatchCounter() {
+        const visibleMatches = document.querySelectorAll('.match-card[style*="block"], .match-card:not([style*="none"])').length;
+        const totalMatches = document.querySelectorAll('.match-card').length;
+        
+        const counterElement = document.getElementById('match-counter');
+        if (counterElement) {
+            counterElement.textContent = `${visibleMatches} van ${totalMatches} matches`;
         }
     }
     
