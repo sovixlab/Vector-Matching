@@ -251,6 +251,26 @@
 </div>
 
 {% block extra_js %}
+<style>
+/* Verberg rijen zonder tabel layout te verstoren */
+.match-card.hidden {
+    display: none !important;
+}
+
+/* Zorg dat tabel layout behouden blijft */
+.table tbody tr {
+    transition: opacity 0.2s ease;
+}
+
+.match-card.hidden {
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const generateBtn = document.getElementById('generate-matches-btn');
@@ -333,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                if (data.success) {
+                if (data.success && data.afstand_km !== undefined) {
                     element.innerHTML = `
                         <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
@@ -342,11 +362,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="font-medium">${data.afstand_km} km</span>
                     `;
                 } else {
+                    console.warn(`Afstand data onvolledig voor match ${matchId}:`, data);
                     element.innerHTML = `
                         <svg class="w-4 h-4 mr-1 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span class="text-error">Fout</span>
+                        <span class="text-error">Geen data</span>
                     `;
                     errorCount++;
                 }
@@ -358,12 +379,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Fout bij laden afstand:', error);
+                console.error(`Fout bij laden afstand voor match ${matchId}:`, error);
                 element.innerHTML = `
                     <svg class="w-4 h-4 mr-1 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <span class="text-error">Fout</span>
+                    <span class="text-error">Error</span>
                 `;
                 errorCount++;
                 loadedCount++;
@@ -422,13 +443,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (afstandMatch) {
                 const afstand = parseFloat(afstandMatch[1]);
                 if (afstand <= maxAfstand) {
-                    card.style.display = 'block';
+                    // Toon de rij
+                    card.style.display = '';
+                    card.classList.remove('hidden');
                 } else {
-                    card.style.display = 'none';
+                    // Verberg de rij met CSS class in plaats van display none
+                    card.classList.add('hidden');
                 }
             } else {
                 // Als geen afstand gevonden, verberg de card
-                card.style.display = 'none';
+                card.classList.add('hidden');
             }
         });
         
@@ -438,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update match counter
     function updateMatchCounter() {
-        const visibleMatches = document.querySelectorAll('.match-card[style*="block"], .match-card:not([style*="none"])').length;
+        const visibleMatches = document.querySelectorAll('.match-card:not(.hidden)').length;
         const totalMatches = document.querySelectorAll('.match-card').length;
         
         const counterElement = document.getElementById('match-counter');
@@ -446,6 +470,29 @@ document.addEventListener('DOMContentLoaded', function() {
             counterElement.textContent = `${visibleMatches} van ${totalMatches} matches`;
         }
     }
+    
+    // Reset afstand filter
+    function resetAfstandFilter() {
+        if (afstandFilter) {
+            afstandFilter.value = 100; // Reset naar maximum
+            // Toon alle matches
+            const matchCards = document.querySelectorAll('.match-card');
+            matchCards.forEach(card => {
+                card.classList.remove('hidden');
+            });
+            updateMatchCounter();
+        }
+    }
+    
+    // Voeg reset functionaliteit toe
+    document.addEventListener('DOMContentLoaded', function() {
+        const resetBtn = document.getElementById('reset-filters-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                resetAfstandFilter();
+            });
+        }
+    });
     
     if (generateBtn) {
         generateBtn.addEventListener('click', function() {
