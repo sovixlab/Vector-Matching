@@ -307,38 +307,32 @@ def embed_profile_text(candidate_id):
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Detecteer kolom type - check ook pg_type voor USER-DEFINED types
+        # Probeer eerst JSONB (meest waarschijnlijk), dan vector
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT c.data_type, t.typname
-                FROM information_schema.columns c
-                LEFT JOIN pg_type t ON t.typname = c.udt_name
-                WHERE c.table_name = 'vector_matching_app_candidate' 
-                AND c.column_name = 'embedding'
-            """)
-            result = cursor.fetchone()
-            column_type = result[0] if result else 'USER-DEFINED'
-            pg_type = result[1] if result and len(result) > 1 else None
-        
-        # Gebruik juiste cast op basis van kolom type
-        with connection.cursor() as cursor:
-            if column_type == 'USER-DEFINED' and pg_type == 'vector':
-                # PostgreSQL vector type
+            try:
+                # Probeer JSONB eerst
                 cursor.execute(
-                    "UPDATE vector_matching_app_candidate SET embedding = %s::vector WHERE id = %s",
+                    "UPDATE vector_matching_app_candidate SET embedding = %s::jsonb WHERE id = %s",
                     [embedding_list, candidate_id]
                 )
-            else:
-                # JSONB type - sla op als JSON (geen cast nodig)
-                cursor.execute(
-                    "UPDATE vector_matching_app_candidate SET embedding = %s WHERE id = %s",
-                    [embedding_list, candidate_id]
-                )
+                logger.info(f"Embedding opgeslagen als JSONB voor kandidaat {candidate_id}")
+            except Exception as jsonb_error:
+                logger.warning(f"JSONB cast gefaald voor kandidaat {candidate_id}, probeer vector: {jsonb_error}")
+                try:
+                    # Probeer vector als fallback
+                    cursor.execute(
+                        "UPDATE vector_matching_app_candidate SET embedding = %s::vector WHERE id = %s",
+                        [embedding_list, candidate_id]
+                    )
+                    logger.info(f"Embedding opgeslagen als vector voor kandidaat {candidate_id}")
+                except Exception as vector_error:
+                    logger.error(f"Beide casts gefaald voor kandidaat {candidate_id}: JSONB={jsonb_error}, Vector={vector_error}")
+                    raise vector_error
         
         # Update alleen de timestamp via Django ORM
         candidate.save(update_fields=['updated_at'])
         
-        logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id} (type: {column_type})")
+        logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
         return candidate_id
         
     except Exception as e:
@@ -572,38 +566,32 @@ def generate_vacature_embedding(vacature_id):
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Detecteer kolom type - check ook pg_type voor USER-DEFINED types
+        # Probeer eerst JSONB (meest waarschijnlijk), dan vector
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT c.data_type, t.typname
-                FROM information_schema.columns c
-                LEFT JOIN pg_type t ON t.typname = c.udt_name
-                WHERE c.table_name = 'vector_matching_app_vacature' 
-                AND c.column_name = 'embedding'
-            """)
-            result = cursor.fetchone()
-            column_type = result[0] if result else 'USER-DEFINED'
-            pg_type = result[1] if result and len(result) > 1 else None
-        
-        # Gebruik juiste cast op basis van kolom type
-        with connection.cursor() as cursor:
-            if column_type == 'USER-DEFINED' and pg_type == 'vector':
-                # PostgreSQL vector type
+            try:
+                # Probeer JSONB eerst
                 cursor.execute(
-                    "UPDATE vector_matching_app_vacature SET embedding = %s::vector WHERE id = %s",
+                    "UPDATE vector_matching_app_vacature SET embedding = %s::jsonb WHERE id = %s",
                     [embedding_list, vacature_id]
                 )
-            else:
-                # JSONB type - sla op als JSON (geen cast nodig)
-                cursor.execute(
-                    "UPDATE vector_matching_app_vacature SET embedding = %s WHERE id = %s",
-                    [embedding_list, vacature_id]
-                )
+                logger.info(f"Embedding opgeslagen als JSONB voor vacature {vacature_id}")
+            except Exception as jsonb_error:
+                logger.warning(f"JSONB cast gefaald voor vacature {vacature_id}, probeer vector: {jsonb_error}")
+                try:
+                    # Probeer vector als fallback
+                    cursor.execute(
+                        "UPDATE vector_matching_app_vacature SET embedding = %s::vector WHERE id = %s",
+                        [embedding_list, vacature_id]
+                    )
+                    logger.info(f"Embedding opgeslagen als vector voor vacature {vacature_id}")
+                except Exception as vector_error:
+                    logger.error(f"Beide casts gefaald voor vacature {vacature_id}: JSONB={jsonb_error}, Vector={vector_error}")
+                    raise vector_error
         
         # Update alleen de timestamp via Django ORM
         vacature.save(update_fields=['updated_at'])
         
-        logger.info(f"Embedding gegenereerd voor vacature {vacature_id} (type: {column_type})")
+        logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
         return embedding
         
     except Exception as e:
