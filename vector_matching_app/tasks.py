@@ -301,23 +301,42 @@ def embed_profile_text(candidate_id):
             logger.error(f"OpenAI API error bij embedding voor kandidaat {candidate_id}: {str(e)}")
             raise ValueError(f"OpenAI API fout: {str(e)}")
         
-        # Sla embedding op - gebruik raw SQL voor PostgreSQL vector type
+        # Sla embedding op - detecteer kolom type en gebruik juiste cast
         from django.db import connection
         
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Gebruik raw SQL om vector op te slaan
+        # Detecteer kolom type
         with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE vector_matching_app_candidate SET embedding = %s::vector WHERE id = %s",
-                [embedding_list, candidate_id]
-            )
+            cursor.execute("""
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = 'vector_matching_app_candidate' 
+                AND column_name = 'embedding'
+            """)
+            result = cursor.fetchone()
+            column_type = result[0] if result else 'USER-DEFINED'
+        
+        # Gebruik juiste cast op basis van kolom type
+        with connection.cursor() as cursor:
+            if column_type == 'USER-DEFINED':
+                # PostgreSQL vector type
+                cursor.execute(
+                    "UPDATE vector_matching_app_candidate SET embedding = %s::vector WHERE id = %s",
+                    [embedding_list, candidate_id]
+                )
+            else:
+                # JSONB type - sla op als JSON
+                cursor.execute(
+                    "UPDATE vector_matching_app_candidate SET embedding = %s::jsonb WHERE id = %s",
+                    [embedding_list, candidate_id]
+                )
         
         # Update alleen de timestamp via Django ORM
         candidate.save(update_fields=['updated_at'])
         
-        logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id}")
+        logger.info(f"Embedding gegenereerd voor kandidaat {candidate_id} (type: {column_type})")
         return candidate_id
         
     except Exception as e:
@@ -545,23 +564,42 @@ def generate_vacature_embedding(vacature_id):
         client = get_openai_client()
         embedding = client.embed(text_for_embedding, model="text-embedding-3-small")
         
-        # Sla de embedding op - gebruik raw SQL voor PostgreSQL vector type
+        # Sla de embedding op - detecteer kolom type en gebruik juiste cast
         from django.db import connection
         
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Gebruik raw SQL om vector op te slaan
+        # Detecteer kolom type
         with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE vector_matching_app_vacature SET embedding = %s::vector WHERE id = %s",
-                [embedding_list, vacature_id]
-            )
+            cursor.execute("""
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = 'vector_matching_app_vacature' 
+                AND column_name = 'embedding'
+            """)
+            result = cursor.fetchone()
+            column_type = result[0] if result else 'USER-DEFINED'
+        
+        # Gebruik juiste cast op basis van kolom type
+        with connection.cursor() as cursor:
+            if column_type == 'USER-DEFINED':
+                # PostgreSQL vector type
+                cursor.execute(
+                    "UPDATE vector_matching_app_vacature SET embedding = %s::vector WHERE id = %s",
+                    [embedding_list, vacature_id]
+                )
+            else:
+                # JSONB type - sla op als JSON
+                cursor.execute(
+                    "UPDATE vector_matching_app_vacature SET embedding = %s::jsonb WHERE id = %s",
+                    [embedding_list, vacature_id]
+                )
         
         # Update alleen de timestamp via Django ORM
         vacature.save(update_fields=['updated_at'])
         
-        logger.info(f"Embedding gegenereerd voor vacature {vacature_id}")
+        logger.info(f"Embedding gegenereerd voor vacature {vacature_id} (type: {column_type})")
         return embedding
         
     except Exception as e:
