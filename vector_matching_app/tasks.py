@@ -307,13 +307,17 @@ def embed_profile_text(candidate_id):
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Probeer eerst JSONB (meest waarschijnlijk), dan vector
+        # Converteer naar JSON string voor PostgreSQL
+        import json
+        embedding_json = json.dumps(embedding_list)
+        
+        # Probeer eerst JSONB, dan vector
         with connection.cursor() as cursor:
             try:
-                # Probeer JSONB eerst
+                # Probeer JSONB met JSON string
                 cursor.execute(
                     "UPDATE vector_matching_app_candidate SET embedding = %s::jsonb WHERE id = %s",
-                    [embedding_list, candidate_id]
+                    [embedding_json, candidate_id]
                 )
                 logger.info(f"Embedding opgeslagen als JSONB voor kandidaat {candidate_id}")
             except Exception as jsonb_error:
@@ -566,13 +570,17 @@ def generate_vacature_embedding(vacature_id):
         # Converteer naar lijst
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        # Probeer eerst JSONB (meest waarschijnlijk), dan vector
+        # Converteer naar JSON string voor PostgreSQL
+        import json
+        embedding_json = json.dumps(embedding_list)
+        
+        # Probeer eerst JSONB, dan vector
         with connection.cursor() as cursor:
             try:
-                # Probeer JSONB eerst
+                # Probeer JSONB met JSON string
                 cursor.execute(
                     "UPDATE vector_matching_app_vacature SET embedding = %s::jsonb WHERE id = %s",
-                    [embedding_list, vacature_id]
+                    [embedding_json, vacature_id]
                 )
                 logger.info(f"Embedding opgeslagen als JSONB voor vacature {vacature_id}")
             except Exception as jsonb_error:
