@@ -27,7 +27,13 @@ def check_database_schema():
     
     # Database info
     print(f"Database Engine: {connection.vendor}")
-    print(f"Database Version: {connection.get_server_version()}")
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT version()")
+            version = cursor.fetchone()[0]
+            print(f"Database Version: {version}")
+    except Exception as e:
+        print(f"Database Version: Could not determine - {e}")
     print()
     
     # Check Candidate embedding kolom
