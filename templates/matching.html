@@ -57,11 +57,16 @@
                         <span class="label-text">Maximale afstand</span>
                         <span id="afstand-loading-status" class="text-xs text-base-content/60">(Klik op knop om afstanden te berekenen)</span>
                     </label>
-                    <input type="range" min="0" max="100" value="50" class="range range-secondary" id="afstand-filter" disabled />
+                    <div class="flex items-center gap-4">
+                        <input type="range" min="0" max="20" value="20" step="1" class="range range-secondary flex-1" id="afstand-filter" disabled />
+                        <div class="text-sm font-medium text-base-content min-w-[3rem] text-center" id="afstand-value">100 km</div>
+                    </div>
                     <div class="w-full flex justify-between text-xs px-2">
                         <span>0 km</span>
+                        <span>25 km</span>
                         <span>50 km</span>
-                        <span>100 km</span>
+                        <span>75 km</span>
+                        <span>Onbeperkt</span>
                     </div>
                 </div>
                 <div class="form-control">
@@ -434,8 +439,22 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Voeg event listener toe voor afstand filter
         if (afstandFilter) {
+            // Update de weergave waarde bij verandering
             afstandFilter.addEventListener('input', function() {
-                const maxAfstand = parseInt(this.value);
+                const sliderValue = parseInt(this.value);
+                const maxAfstand = sliderValue * 5; // Converteer naar KM (0-100 in stappen van 5)
+                
+                // Update de weergave
+                const afstandValue = document.getElementById('afstand-value');
+                if (afstandValue) {
+                    if (maxAfstand >= 100) {
+                        afstandValue.textContent = 'Onbeperkt';
+                    } else {
+                        afstandValue.textContent = `${maxAfstand} km`;
+                    }
+                }
+                
+                // Filter de matches
                 filterMatchesByAfstand(maxAfstand);
             });
         }
@@ -445,29 +464,35 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterMatchesByAfstand(maxAfstand) {
         const matchCards = document.querySelectorAll('.match-card');
         
-        matchCards.forEach(card => {
-            const afstandElement = card.querySelector('[id^="afstand-"]');
-            if (!afstandElement) return;
-            
-            // Zoek de afstand waarde uit de tekst
-            const afstandText = afstandElement.textContent;
-            const afstandMatch = afstandText.match(/(\d+(?:\.\d+)?)\s*km/);
-            
-            if (afstandMatch) {
-                const afstand = parseFloat(afstandMatch[1]);
-                if (afstand <= maxAfstand) {
-                    // Toon de rij
-                    card.style.display = '';
-                    card.classList.remove('hidden');
+        // Als maxAfstand >= 100, toon alle matches (onbeperkt)
+        if (maxAfstand >= 100) {
+            matchCards.forEach(card => {
+                card.classList.remove('hidden');
+            });
+        } else {
+            matchCards.forEach(card => {
+                const afstandElement = card.querySelector('[id^="afstand-"]');
+                if (!afstandElement) return;
+                
+                // Zoek de afstand waarde uit de tekst
+                const afstandText = afstandElement.textContent;
+                const afstandMatch = afstandText.match(/(\d+(?:\.\d+)?)\s*km/);
+                
+                if (afstandMatch) {
+                    const afstand = parseFloat(afstandMatch[1]);
+                    if (afstand <= maxAfstand) {
+                        // Toon de rij
+                        card.classList.remove('hidden');
+                    } else {
+                        // Verberg de rij met CSS class
+                        card.classList.add('hidden');
+                    }
                 } else {
-                    // Verberg de rij met CSS class in plaats van display none
+                    // Als geen afstand gevonden, verberg de card
                     card.classList.add('hidden');
                 }
-            } else {
-                // Als geen afstand gevonden, verberg de card
-                card.classList.add('hidden');
-            }
-        });
+            });
+        }
         
         // Update counter
         updateMatchCounter();
@@ -487,7 +512,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset afstand filter
     function resetAfstandFilter() {
         if (afstandFilter) {
-            afstandFilter.value = 100; // Reset naar maximum
+            afstandFilter.value = 20; // Reset naar maximum (20 * 5 = 100 km)
+            
+            // Update de weergave
+            const afstandValue = document.getElementById('afstand-value');
+            if (afstandValue) {
+                afstandValue.textContent = 'Onbeperkt';
+            }
+            
             // Toon alle matches
             const matchCards = document.querySelectorAll('.match-card');
             matchCards.forEach(card => {

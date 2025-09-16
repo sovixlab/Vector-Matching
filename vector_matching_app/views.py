@@ -357,7 +357,27 @@ def kandidaat_edit_view(request, candidate_id):
             else:
                 candidate.job_titles = []
             
-            candidate.save()
+            # Sla op zonder embedding kolom (die is van type vector, niet jsonb)
+            candidate.save(update_fields=[
+                'name', 'email', 'phone', 'street', 'house_number', 
+                'postal_code', 'city', 'education_level', 'years_experience', 
+                'job_titles', 'updated_at'
+            ])
+            
+            # Geocode locatie als plaats of postcode is gewijzigd
+            old_city = candidate.city
+            old_postal_code = candidate.postal_code
+            new_city = request.POST.get('city', '')
+            new_postal_code = request.POST.get('postal_code', '')
+            
+            if (old_city != new_city or old_postal_code != new_postal_code) and new_city:
+                try:
+                    from .tasks import geocode_candidate
+                    geocode_candidate(candidate_id)
+                    messages.info(request, 'Locatie wordt gegeocodeerd...')
+                except Exception as geo_error:
+                    logger.warning(f"Geocoding gefaald voor kandidaat {candidate_id}: {str(geo_error)}")
+            
             messages.success(request, f'{candidate.name or "Kandidaat"} is bijgewerkt.')
             
             return redirect('vector_matching_app:kandidaat_detail', candidate_id=candidate_id)
@@ -1129,9 +1149,9 @@ def calculate_distances_view(request):
         
         for match in matches_without_distance:
             try:
-                # Controleer of beide partijen locatie hebben
+                # Controleer of kandidaat locatie heeft en vacature plaatsnaam
                 if (match.kandidaat.latitude and match.kandidaat.longitude and 
-                    match.vacature.latitude and match.vacature.longitude):
+                    match.vacature.plaats):
                     
                     # Bereken afstand
                     distance = calculate_distance_for_match(match)
@@ -1171,6 +1191,91 @@ def calculate_distances_view(request):
             'success': False,
             'error': f'Fout bij berekenen afstanden: {str(e)}'
         }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def location_search_view(request):
+    """Zoek plaatsen op basis van query voor autocomplete."""
+    import requests
+    
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    
+    try:
+        # Zoek via PDOK
+        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
+        params = {
+            'q': query,
+            'fl': 'weergavenaam,centroide_ll,postcode',
+            'rows': 10,
+            'fq': 'type:woonplaats'  # Alleen woonplaatsen
+        }
+        
+        response = requests.get(pdok_url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            results = []
+            
+            for doc in data.get('response', {}).get('docs', []):
+                place_name = doc.get('weergavenaam', '')
+                postcode = doc.get('postcode', '')
+                centroide = doc.get('centroide_ll', '')
+                
+                if place_name and centroide:
+                    lat, lon = centroide.split(' ')
+                    results.append({
+                        'name': place_name,
+                        'postcode': postcode,
+                        'latitude': float(lat),
+                        'longitude': float(lon)
+                    })
+            
+            return JsonResponse({'results': results})
+        
+    except Exception as e:
+        logger.error(f"Fout bij zoeken plaatsen: {str(e)}")
+    
+    return JsonResponse({'results': []})
+
+
+@login_required
+@require_http_methods(["GET"])
+def postcode_suggest_view(request):
+    """Suggereer postcode op basis van plaatsnaam."""
+    import requests
+    
+    place = request.GET.get('place', '').strip()
+    if not place:
+        return JsonResponse({'postcodes': []})
+    
+    try:
+        # Zoek postcodes voor plaats via PDOK
+        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup"
+        params = {
+            'q': place,
+            'fl': 'weergavenaam,postcode,centroide_ll',
+            'rows': 20,
+            'fq': 'type:woonplaats'
+        }
+        
+        response = requests.get(pdok_url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            postcodes = set()
+            
+            for doc in data.get('response', {}).get('docs', []):
+                postcode = doc.get('postcode', '')
+                if postcode and len(postcode) == 6:  # Nederlandse postcode format
+                    postcodes.add(postcode)
+            
+            return JsonResponse({'postcodes': sorted(list(postcodes))})
+        
+    except Exception as e:
+        logger.error(f"Fout bij zoeken postcodes: {str(e)}")
+    
+    return JsonResponse({'postcodes': []})
 
 
 @login_required

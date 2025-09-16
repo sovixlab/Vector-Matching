@@ -855,11 +855,30 @@ def generate_matches():
 def calculate_distance_for_match(match):
     """Bereken afstand tussen kandidaat en vacature locatie."""
     import math
+    import requests
     
     try:
-        # Haal coördinaten op
+        # Haal coördinaten op voor kandidaat
         lat1, lon1 = match.kandidaat.latitude, match.kandidaat.longitude
-        lat2, lon2 = match.vacature.latitude, match.vacature.longitude
+        
+        # Geocode vacature plaatsnaam naar coördinaten
+        vacature_plaats = match.vacature.plaats
+        vacature_postcode = match.vacature.postcode
+        
+        if not vacature_plaats:
+            logger.warning(f"Geen plaatsnaam voor vacature {match.vacature.id}")
+            return None
+            
+        # Geocode vacature plaats (met postcode als beschikbaar)
+        if vacature_postcode:
+            address = f"{vacature_postcode} {vacature_plaats}"
+        else:
+            address = vacature_plaats
+            
+        lat2, lon2 = geocode_place(address)
+        if not lat2 or not lon2:
+            logger.warning(f"Kon vacature plaats {vacature_plaats} niet geocoderen")
+            return None
         
         if not all([lat1, lon1, lat2, lon2]):
             logger.warning(f"Ontbrekende coördinaten voor match {match.id}")
@@ -891,3 +910,50 @@ def calculate_distance_for_match(match):
     except Exception as e:
         logger.error(f"Fout bij berekenen afstand voor match {match.id}: {str(e)}")
         return None
+
+
+def geocode_place(place_name):
+    """Geocode een plaatsnaam naar coördinaten."""
+    import requests
+    
+    try:
+        # Probeer eerst PDOK
+        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup"
+        params = {
+            'fl': 'weergavenaam,centroide_ll',
+            'q': place_name,
+            'rows': 1
+        }
+        
+        response = requests.get(pdok_url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('response', {}).get('docs'):
+                doc = data['response']['docs'][0]
+                if 'centroide_ll' in doc:
+                    lat, lon = doc['centroide_ll'].split(' ')
+                    return float(lat), float(lon)
+    except Exception as e:
+        logger.warning(f"PDOK geocoding gefaald voor {place_name}: {str(e)}")
+    
+    # Fallback naar Nominatim
+    try:
+        nominatim_url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            'q': f"{place_name}, Nederland",
+            'format': 'json',
+            'limit': 1,
+            'countrycodes': 'nl'
+        }
+        
+        response = requests.get(nominatim_url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                lat = float(data[0]['lat'])
+                lon = float(data[0]['lon'])
+                return lat, lon
+    except Exception as e:
+        logger.warning(f"Nominatim geocoding gefaald voor {place_name}: {str(e)}")
+    
+    return None, None

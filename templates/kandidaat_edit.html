@@ -112,22 +112,31 @@
                                class="input input-bordered w-full">
                     </div>
 
+                    <!-- Plaats -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base-content/70">Plaats *</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" name="city" id="city-input" value="{{ candidate.city|default:'' }}" 
+                                   class="input input-bordered w-full" placeholder="Typ plaatsnaam..." autocomplete="off">
+                            <div id="city-suggestions" class="absolute z-10 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
+                                <!-- Suggestions will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Postcode -->
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text text-base-content/70">Postcode</span>
+                            <span class="label-text-alt text-base-content/50" id="postcode-suggestions-text"></span>
                         </label>
-                        <input type="text" name="postal_code" value="{{ candidate.postal_code|default:'' }}" 
-                               class="input input-bordered w-full" placeholder="1234 AB">
-                    </div>
-
-                    <!-- Plaats -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text text-base-content/70">Plaats</span>
-                        </label>
-                        <input type="text" name="city" value="{{ candidate.city|default:'' }}" 
-                               class="input input-bordered w-full">
+                        <input type="text" name="postal_code" id="postal-code-input" value="{{ candidate.postal_code|default:'' }}" 
+                               class="input input-bordered w-full" placeholder="1234 AB" autocomplete="off">
+                        <div id="postcode-suggestions" class="mt-2 text-sm text-base-content/60 hidden">
+                            <!-- Postcode suggestions will be shown here -->
+                        </div>
                     </div>
                 </div>
 
@@ -162,4 +171,132 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cityInput = document.getElementById('city-input');
+    const citySuggestions = document.getElementById('city-suggestions');
+    const postalCodeInput = document.getElementById('postal-code-input');
+    const postcodeSuggestions = document.getElementById('postcode-suggestions');
+    const postcodeSuggestionsText = document.getElementById('postcode-suggestions-text');
+    
+    let searchTimeout;
+    let selectedCity = null;
+    
+    // Plaats autocomplete
+    cityInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchPlaces(query);
+        }, 300);
+    });
+    
+    // Verberg suggesties bij klik buiten
+    document.addEventListener('click', function(e) {
+        if (!cityInput.contains(e.target) && !citySuggestions.contains(e.target)) {
+            hideSuggestions();
+        }
+    });
+    
+    // Postcode suggestie bij plaats selectie
+    cityInput.addEventListener('blur', function() {
+        if (this.value.trim() && !selectedCity) {
+            suggestPostcodes(this.value.trim());
+        }
+    });
+    
+    function searchPlaces(query) {
+        fetch(`{% url 'vector_matching_app:location_search' %}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                showCitySuggestions(data.results);
+            })
+            .catch(error => {
+                console.error('Error searching places:', error);
+            });
+    }
+    
+    function showCitySuggestions(places) {
+        if (places.length === 0) {
+            hideSuggestions();
+            return;
+        }
+        
+        citySuggestions.innerHTML = places.map(place => `
+            <div class="px-4 py-2 hover:bg-base-200 cursor-pointer border-b border-base-300 last:border-b-0" 
+                 data-place='${JSON.stringify(place)}'>
+                <div class="font-medium">${place.name}</div>
+                ${place.postcode ? `<div class="text-sm text-base-content/60">${place.postcode}</div>` : ''}
+            </div>
+        `).join('');
+        
+        citySuggestions.classList.remove('hidden');
+        
+        // Voeg click handlers toe
+        citySuggestions.querySelectorAll('[data-place]').forEach(item => {
+            item.addEventListener('click', function() {
+                const place = JSON.parse(this.dataset.place);
+                selectPlace(place);
+            });
+        });
+    }
+    
+    function selectPlace(place) {
+        cityInput.value = place.name;
+        selectedCity = place;
+        hideSuggestions();
+        
+        // Auto-vul postcode als beschikbaar
+        if (place.postcode) {
+            postalCodeInput.value = place.postcode;
+        } else {
+            // Zoek postcodes voor deze plaats
+            suggestPostcodes(place.name);
+        }
+    }
+    
+    function hideSuggestions() {
+        citySuggestions.classList.add('hidden');
+    }
+    
+    function suggestPostcodes(placeName) {
+        fetch(`{% url 'vector_matching_app:postcode_suggest' %}?place=${encodeURIComponent(placeName)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.postcodes.length > 0) {
+                    postcodeSuggestionsText.textContent = `Mogelijke postcodes: ${data.postcodes.join(', ')}`;
+                    postcodeSuggestionsText.classList.remove('hidden');
+                    
+                    // Toon postcode suggesties
+                    postcodeSuggestions.innerHTML = `
+                        <div class="text-sm">
+                            <strong>Mogelijke postcodes:</strong><br>
+                            ${data.postcodes.map(pc => `<span class="badge badge-outline mr-1 mb-1 cursor-pointer" onclick="document.getElementById('postal-code-input').value='${pc}'">${pc}</span>`).join('')}
+                        </div>
+                    `;
+                    postcodeSuggestions.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error suggesting postcodes:', error);
+            });
+    }
+    
+    // Reset selected city bij handmatige wijziging
+    cityInput.addEventListener('input', function() {
+        if (selectedCity && this.value !== selectedCity.name) {
+            selectedCity = null;
+            postcodeSuggestions.classList.add('hidden');
+            postcodeSuggestionsText.classList.add('hidden');
+        }
+    });
+});
+</script>
 {% endblock %}
