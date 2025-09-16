@@ -346,11 +346,71 @@ def embed_profile_text(candidate_id):
         raise
 
 
+def get_postcode_for_city(city_name):
+    """Haal de eerste postcode op voor een plaatsnaam."""
+    import requests
+    
+    try:
+        # Zoek plaatsen via PDOK
+        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
+        params = {
+            'q': city_name,
+            'fl': 'weergavenaam,postcode,centroide_ll',
+            'rows': 10,
+            'fq': 'type:woonplaats'
+        }
+        
+        response = requests.get(pdok_url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            
+            for doc in data.get('response', {}).get('docs', []):
+                place_name = doc.get('weergavenaam', '')
+                postcode = doc.get('postcode', '')
+                
+                # Controleer of de plaatsnaam overeenkomt
+                if (place_name and postcode and len(postcode) == 6 and 
+                    city_name.lower() in place_name.lower()):
+                    return postcode
+        
+        # Fallback: gebruik bekende postcodes voor grote steden
+        city_postcodes = {
+            'amsterdam': '1011',
+            'rotterdam': '3011', 
+            'den haag': '2511',
+            'utrecht': '3511',
+            'eindhoven': '5611',
+            'tilburg': '5011',
+            'groningen': '9711',
+            'almere': '1311',
+            'breda': '4811',
+            'nijmegen': '6511',
+        }
+        
+        city_lower = city_name.lower().strip()
+        for city, postcode in city_postcodes.items():
+            if city in city_lower or city_lower in city:
+                return postcode
+                
+    except Exception as e:
+        logger.warning(f"Fout bij ophalen postcode voor {city_name}: {str(e)}")
+    
+    return None
+
+
 def geocode_candidate(candidate_id):
     """Geocode kandidaat locatie met PDOK en Nominatim."""
     try:
         candidate = Candidate.objects.get(id=candidate_id)
         candidate.update_status('processing', 'Geocoding')
+        
+        # Auto-vul postcode als alleen plaatsnaam beschikbaar is
+        if candidate.city and not candidate.postal_code:
+            suggested_postcode = get_postcode_for_city(candidate.city)
+            if suggested_postcode:
+                candidate.postal_code = suggested_postcode
+                candidate.save(update_fields=['postal_code', 'updated_at'])
+                logger.info(f"Auto-toegevoegde postcode {suggested_postcode} voor plaats {candidate.city}")
         
         # Bereid adres voor
         address_parts = []
@@ -373,7 +433,7 @@ def geocode_candidate(candidate_id):
         
         # Probeer eerst PDOK Locatieserver
         try:
-            pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup"
+            pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
             params = {
                 'fl': 'weergavenaam,centroide_ll',
                 'q': address,
@@ -386,7 +446,13 @@ def geocode_candidate(candidate_id):
                 if data.get('response', {}).get('docs'):
                     doc = data['response']['docs'][0]
                     if 'centroide_ll' in doc:
-                        lat, lon = doc['centroide_ll'].split(' ')
+                        centroide = doc['centroide_ll']
+                        # Parse POINT(lon lat) format
+                        if centroide.startswith('POINT('):
+                            coords = centroide[6:-1]  # Remove 'POINT(' and ')'
+                            lon, lat = coords.split(' ')
+                        else:
+                            lat, lon = centroide.split(' ')
                         lat, lon = float(lat), float(lon)
                         logger.info(f"PDOK geocoding succesvol voor kandidaat {candidate_id}")
         except Exception as e:

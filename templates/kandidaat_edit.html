@@ -120,6 +120,7 @@
                         <div class="relative">
                             <input type="text" name="city" id="city-input" value="{{ candidate.city|default:'' }}" 
                                    class="input input-bordered w-full" placeholder="Typ plaatsnaam..." autocomplete="off">
+                            <input type="hidden" name="city_full" id="city-full-input" value="">
                             <div id="city-suggestions" class="absolute z-10 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
                                 <!-- Suggestions will be populated here -->
                             </div>
@@ -231,13 +232,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        citySuggestions.innerHTML = places.map(place => `
-            <div class="px-4 py-2 hover:bg-base-200 cursor-pointer border-b border-base-300 last:border-b-0" 
-                 data-place='${JSON.stringify(place)}'>
-                <div class="font-medium">${place.name}</div>
-                ${place.postcode ? `<div class="text-sm text-base-content/60">${place.postcode}</div>` : ''}
-            </div>
-        `).join('');
+        citySuggestions.innerHTML = places.map(place => {
+            // Toon alleen de eerste deel van de plaatsnaam (voor de komma)
+            const displayName = place.name.split(',')[0].trim();
+            return `
+                <div class="px-4 py-2 hover:bg-base-200 cursor-pointer border-b border-base-300 last:border-b-0" 
+                     data-place='${JSON.stringify(place)}'>
+                    <div class="font-medium">${displayName}</div>
+                    ${place.postcode ? `<div class="text-sm text-base-content/60">${place.postcode}</div>` : ''}
+                </div>
+            `;
+        }).join('');
         
         citySuggestions.classList.remove('hidden');
         
@@ -251,7 +256,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function selectPlace(place) {
-        cityInput.value = place.name;
+        // Vul alleen de eerste deel van de plaatsnaam in (voor de komma)
+        const displayName = place.name.split(',')[0].trim();
+        cityInput.value = displayName;
+        
+        // Sla de volledige plaatsnaam op in hidden field voor geocoding
+        const cityFullInput = document.getElementById('city-full-input');
+        cityFullInput.value = place.name;
+        
         selectedCity = place;
         hideSuggestions();
         
@@ -260,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
             postalCodeInput.value = place.postcode;
         } else {
             // Zoek postcodes voor deze plaats
-            suggestPostcodes(place.name);
+            suggestPostcodes(displayName);
         }
     }
     
@@ -295,8 +307,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Reset selected city bij handmatige wijziging
     cityInput.addEventListener('input', function() {
-        if (selectedCity && this.value !== selectedCity.name) {
+        if (selectedCity && this.value !== selectedCity.name.split(',')[0].trim()) {
             selectedCity = null;
+            // Reset hidden field
+            const cityFullInput = document.getElementById('city-full-input');
+            cityFullInput.value = '';
             postcodeSuggestions.classList.add('hidden');
             postcodeSuggestionsText.classList.add('hidden');
         }

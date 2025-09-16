@@ -340,7 +340,16 @@ def kandidaat_edit_view(request, candidate_id):
             candidate.street = request.POST.get('street', candidate.street)
             candidate.house_number = request.POST.get('house_number', candidate.house_number)
             candidate.postal_code = request.POST.get('postal_code', candidate.postal_code)
-            candidate.city = request.POST.get('city', candidate.city)
+            
+            # Voor city: sla de volledige naam op als die beschikbaar is via hidden field
+            city_input = request.POST.get('city', candidate.city)
+            city_full = request.POST.get('city_full', '')  # Hidden field met volledige naam
+            
+            if city_full:
+                candidate.city = city_full  # Sla volledige naam op voor geocoding
+            else:
+                candidate.city = city_input  # Gebruik ingevoerde naam
+                
             candidate.education_level = request.POST.get('education_level', candidate.education_level)
             
             # Parse jaren ervaring
@@ -364,11 +373,24 @@ def kandidaat_edit_view(request, candidate_id):
                 'job_titles', 'updated_at'
             ])
             
+            # Auto-vul postcode als alleen plaatsnaam is ingevuld
+            new_city = request.POST.get('city', '')
+            new_postal_code = request.POST.get('postal_code', '')
+            
+            if new_city and not new_postal_code:
+                try:
+                    from .tasks import get_postcode_for_city
+                    suggested_postcode = get_postcode_for_city(new_city)
+                    if suggested_postcode:
+                        candidate.postal_code = suggested_postcode
+                        candidate.save(update_fields=['postal_code', 'updated_at'])
+                        messages.info(request, f'Postcode {suggested_postcode} automatisch toegevoegd voor {new_city}')
+                except Exception as postcode_error:
+                    logger.warning(f"Auto-postcode gefaald voor kandidaat {candidate_id}: {str(postcode_error)}")
+            
             # Geocode locatie als plaats of postcode is gewijzigd
             old_city = candidate.city
             old_postal_code = candidate.postal_code
-            new_city = request.POST.get('city', '')
-            new_postal_code = request.POST.get('postal_code', '')
             
             if (old_city != new_city or old_postal_code != new_postal_code) and new_city:
                 try:
