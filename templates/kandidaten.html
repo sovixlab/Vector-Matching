@@ -638,6 +638,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (selectedCount > 0) {
                 if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt geocoderen? Dit kan even duren.`)) {
+                    // Add selected candidate IDs to the form
+                    const candidateIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+                    
+                    // Clear existing hidden inputs
+                    const existingInputs = bulkGeocodeForm.querySelectorAll('input[name="candidate_ids"]');
+                    existingInputs.forEach(input => input.remove());
+                    
+                    // Add new hidden inputs for selected candidates
+                    candidateIds.forEach(candidateId => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'candidate_ids';
+                        input.value = candidateId;
+                        bulkGeocodeForm.appendChild(input);
+                    });
+                    
+                    // Submit the form
                     bulkGeocodeForm.submit();
                 }
             }
@@ -648,9 +665,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (bulkDeleteBtn) {
         bulkDeleteBtn.addEventListener('click', function() {
-            const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
+            const selectedCheckboxes = document.querySelectorAll('.candidate-checkbox:checked');
+            const selectedCount = selectedCheckboxes.length;
             if (selectedCount > 0) {
                 if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt verwijderen?`)) {
+                    // Add selected candidate IDs to the form
+                    const candidateIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+                    
+                    // Clear existing hidden inputs
+                    const existingInputs = bulkDeleteForm.querySelectorAll('input[name="candidate_ids"]');
+                    existingInputs.forEach(input => input.remove());
+                    
+                    // Add new hidden inputs for selected candidates
+                    candidateIds.forEach(candidateId => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'candidate_ids';
+                        input.value = candidateId;
+                        bulkDeleteForm.appendChild(input);
+                    });
+                    
+                    // Submit the form
                     bulkDeleteForm.submit();
                 }
             }
