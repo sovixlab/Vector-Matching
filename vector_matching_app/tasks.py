@@ -415,13 +415,27 @@ def geocode_candidate(candidate_id):
                 candidate.save(update_fields=['postal_code', 'updated_at'])
                 logger.info(f"Auto-toegevoegde postcode {suggested_postcode} voor plaats {city_name}")
         
-        # Bereid adres voor - gebruik postcode + plaats voor nauwkeurigere geocoding
+        # Bereid adres voor - probeer verschillende combinaties
+        short_city = candidate.city.split(',')[0].strip() if candidate.city else ""
+        
+        if not short_city:
+            logger.warning(f"Geen plaatsnaam gevonden voor kandidaat {candidate_id}")
+            candidate.update_status('completed', 'Geocoding', 'Geen plaatsnaam')
+            return
+        
+        # Probeer verschillende adres combinaties
+        address_attempts = []
+        
+        # 1. Postcode + plaats (als beide beschikbaar)
         if candidate.postal_code and candidate.city:
-            # Gebruik postcode + plaats combinatie voor beste nauwkeurigheid
-            address = f"{candidate.postal_code} {candidate.city}"
-            logger.info(f"Gebruik postcode + plaats voor geocoding: {address}")
-        else:
-            # Fallback naar volledige adres
+            formatted_postcode = candidate.postal_code.replace(' ', '')
+            address_attempts.append(f"{formatted_postcode} {short_city}")
+        
+        # 2. Alleen plaatsnaam (altijd als fallback)
+        address_attempts.append(short_city)
+        
+        # 3. Volledig adres (als beschikbaar)
+        if candidate.street or candidate.house_number:
             address_parts = []
             if candidate.street:
                 address_parts.append(candidate.street)
@@ -429,65 +443,72 @@ def geocode_candidate(candidate_id):
                 address_parts.append(candidate.house_number)
             if candidate.postal_code:
                 address_parts.append(candidate.postal_code)
-            if candidate.city:
-                address_parts.append(candidate.city)
-            
-            if not address_parts:
-                logger.warning(f"Geen adres informatie gevonden voor kandidaat {candidate_id}")
-                candidate.update_status('completed', 'Geocoding', 'Geen adres informatie')
-                return
-            
-            address = ', '.join(address_parts)
-            logger.info(f"Gebruik volledige adres voor geocoding: {address}")
+            address_parts.append(short_city)
+            address_attempts.append(', '.join(address_parts))
+        
         lat, lon = None, None
         
-        # Probeer eerst PDOK Locatieserver
-        try:
-            pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
-            params = {
-                'fl': 'weergavenaam,centroide_ll',
-                'q': address,
-                'rows': 1
-            }
-            
-            response = requests.get(pdok_url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('response', {}).get('docs'):
-                    doc = data['response']['docs'][0]
-                    if 'centroide_ll' in doc:
-                        centroide = doc['centroide_ll']
-                        # Parse POINT(lon lat) format
-                        if centroide.startswith('POINT('):
-                            coords = centroide[6:-1]  # Remove 'POINT(' and ')'
-                            lon, lat = coords.split(' ')
-                        else:
-                            lat, lon = centroide.split(' ')
-                        lat, lon = float(lat), float(lon)
-                        logger.info(f"PDOK geocoding succesvol voor kandidaat {candidate_id}")
-        except Exception as e:
-            logger.warning(f"PDOK geocoding gefaald voor kandidaat {candidate_id}: {str(e)}")
+        # Probeer PDOK met verschillende adres combinaties
+        for i, address in enumerate(address_attempts):
+            if lat is not None and lon is not None:
+                break  # Al gevonden
+                
+            try:
+                logger.info(f"PDOK poging {i+1}: {address}")
+                pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
+                params = {
+                    'fl': 'weergavenaam,centroide_ll',
+                    'q': address,
+                    'rows': 1
+                }
+                
+                response = requests.get(pdok_url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('response', {}).get('docs'):
+                        doc = data['response']['docs'][0]
+                        if 'centroide_ll' in doc:
+                            centroide = doc['centroide_ll']
+                            # Parse POINT(lon lat) format
+                            if centroide.startswith('POINT('):
+                                coords = centroide[6:-1]  # Remove 'POINT(' and ')'
+                                lon, lat = coords.split(' ')
+                            else:
+                                lat, lon = centroide.split(' ')
+                            lat, lon = float(lat), float(lon)
+                            logger.info(f"PDOK geocoding succesvol voor kandidaat {candidate_id} met: {address}")
+                            break
+            except Exception as e:
+                logger.warning(f"PDOK geocoding gefaald voor kandidaat {candidate_id} met '{address}': {str(e)}")
+                continue
         
         # Fallback naar Nominatim
         if lat is None or lon is None:
-            try:
-                nominatim_url = "https://nominatim.openstreetmap.org/search"
-                params = {
-                    'q': address,
-                    'format': 'json',
-                    'limit': 1,
-                    'countrycodes': 'nl'  # Focus op Nederland
-                }
-                
-                response = requests.get(nominatim_url, params=params, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data:
-                        lat = float(data[0]['lat'])
-                        lon = float(data[0]['lon'])
-                        logger.info(f"Nominatim geocoding succesvol voor kandidaat {candidate_id}")
-            except Exception as e:
-                logger.warning(f"Nominatim geocoding gefaald voor kandidaat {candidate_id}: {str(e)}")
+            for i, address in enumerate(address_attempts):
+                if lat is not None and lon is not None:
+                    break  # Al gevonden
+                    
+                try:
+                    logger.info(f"Nominatim poging {i+1}: {address}")
+                    nominatim_url = "https://nominatim.openstreetmap.org/search"
+                    params = {
+                        'q': address,
+                        'format': 'json',
+                        'limit': 1,
+                        'countrycodes': 'nl'  # Focus op Nederland
+                    }
+                    
+                    response = requests.get(nominatim_url, params=params, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data:
+                            lat = float(data[0]['lat'])
+                            lon = float(data[0]['lon'])
+                            logger.info(f"Nominatim geocoding succesvol voor kandidaat {candidate_id} met: {address}")
+                            break
+                except Exception as e:
+                    logger.warning(f"Nominatim geocoding gefaald voor kandidaat {candidate_id} met '{address}': {str(e)}")
+                    continue
         
         if lat is not None and lon is not None:
             candidate.latitude = lat
