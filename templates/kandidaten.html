@@ -150,6 +150,13 @@
                         </svg>
                         <span id="selected-count">0</span> opnieuw embedden
                     </button>
+                    <button id="bulk-geocode-btn" class="btn btn-sm btn-success" disabled>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span id="selected-count-geocode">0</span> geocoderen
+                    </button>
                     <button id="bulk-delete-btn" class="btn btn-sm btn-error" disabled>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -161,6 +168,9 @@
             
             {% if candidates %}
                 <form id="bulk-reprocess-form" method="post" action="{% url 'vector_matching_app:kandidaten_bulk_reprocess' %}">
+                    {% csrf_token %}
+                </form>
+                <form id="bulk-geocode-form" method="post" action="{% url 'vector_matching_app:kandidaten_bulk_geocode' %}">
                     {% csrf_token %}
                 </form>
                 <form id="bulk-delete-form" method="post" action="{% url 'vector_matching_app:kandidaten_bulk_delete' %}">
@@ -561,11 +571,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllCheckbox = document.getElementById('select-all-checkbox');
     const selectAllBtn = document.getElementById('select-all-btn');
     const bulkReprocessBtn = document.getElementById('bulk-reprocess-btn');
+    const bulkGeocodeBtn = document.getElementById('bulk-geocode-btn');
     const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
     const selectedCountSpan = document.getElementById('selected-count');
+    const selectedCountGeocodeSpan = document.getElementById('selected-count-geocode');
     const selectedCountDeleteSpan = document.getElementById('selected-count-delete');
     const candidateCheckboxes = document.querySelectorAll('.candidate-checkbox');
     const bulkReprocessForm = document.getElementById('bulk-reprocess-form');
+    const bulkGeocodeForm = document.getElementById('bulk-geocode-form');
     const bulkDeleteForm = document.getElementById('bulk-delete-form');
 
     // Select all checkbox
@@ -617,6 +630,22 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Bulk reprocess button not found!');
     }
 
+    // Bulk geocode button
+    if (bulkGeocodeBtn) {
+        bulkGeocodeBtn.addEventListener('click', function() {
+            const selectedCheckboxes = document.querySelectorAll('.candidate-checkbox:checked');
+            const selectedCount = selectedCheckboxes.length;
+            
+            if (selectedCount > 0) {
+                if (confirm(`Weet je zeker dat je ${selectedCount} kandidaat(en) wilt geocoderen? Dit kan even duren.`)) {
+                    bulkGeocodeForm.submit();
+                }
+            }
+        });
+    } else {
+        console.error('Bulk geocode button not found!');
+    }
+
     if (bulkDeleteBtn) {
         bulkDeleteBtn.addEventListener('click', function() {
             const selectedCount = document.querySelectorAll('.candidate-checkbox:checked').length;
@@ -635,11 +664,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedCountSpan) {
             selectedCountSpan.textContent = selectedCount;
         }
+        if (selectedCountGeocodeSpan) {
+            selectedCountGeocodeSpan.textContent = selectedCount;
+        }
         if (selectedCountDeleteSpan) {
             selectedCountDeleteSpan.textContent = selectedCount;
         }
         if (bulkReprocessBtn) {
             bulkReprocessBtn.disabled = selectedCount === 0;
+        }
+        if (bulkGeocodeBtn) {
+            bulkGeocodeBtn.disabled = selectedCount === 0;
         }
         if (bulkDeleteBtn) {
             bulkDeleteBtn.disabled = selectedCount === 0;

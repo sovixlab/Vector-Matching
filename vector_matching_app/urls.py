@@ -15,6 +15,7 @@ urlpatterns = [
     path('kandidaten/<int:candidate_id>/edit/', views.kandidaat_edit_view, name='kandidaat_edit'),
     path('kandidaten/bulk-delete/', views.kandidaten_bulk_delete_view, name='kandidaten_bulk_delete'),
     path('kandidaten/bulk-reprocess/', views.kandidaten_bulk_reprocess_view, name='kandidaten_bulk_reprocess'),
+    path('kandidaten/bulk-geocode/', views.kandidaten_bulk_geocode_view, name='kandidaten_bulk_geocode'),
     
     # Vacature Management URLs
     path('vacatures/', views.vacatures_list_view, name='vacatures'),
