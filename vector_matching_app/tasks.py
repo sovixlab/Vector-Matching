@@ -966,13 +966,87 @@ def calculate_distance_for_match(match):
             logger.warning(f"Geen plaatsnaam voor vacature {match.vacature.id}")
             return None
             
-        # Geocode vacature plaats (met postcode als beschikbaar)
+        # Geocode vacature plaats met verbeterde logica
+        short_plaats = vacature_plaats.split(',')[0].strip() if vacature_plaats else ""
+        
+        if not short_plaats:
+            logger.warning(f"Geen plaatsnaam voor vacature {match.vacature.id}")
+            return None
+        
+        # Probeer verschillende adres combinaties voor vacature
+        address_attempts = []
+        
+        # 1. Postcode + plaats (als beide beschikbaar)
         if vacature_postcode:
-            address = f"{vacature_postcode} {vacature_plaats}"
-        else:
-            address = vacature_plaats
-            
-        lat2, lon2 = geocode_place(address)
+            formatted_postcode = vacature_postcode.replace(' ', '')
+            address_attempts.append(f"{formatted_postcode} {short_plaats}")
+        
+        # 2. Alleen plaatsnaam (altijd als fallback)
+        address_attempts.append(short_plaats)
+        
+        lat2, lon2 = None, None
+        
+        # Probeer PDOK met verschillende adres combinaties
+        for i, address in enumerate(address_attempts):
+            if lat2 is not None and lon2 is not None:
+                break  # Al gevonden
+                
+            try:
+                logger.info(f"Vacature geocoding poging {i+1}: {address}")
+                pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
+                params = {
+                    'fl': 'weergavenaam,centroide_ll',
+                    'q': address,
+                    'rows': 1
+                }
+                
+                response = requests.get(pdok_url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('response', {}).get('docs'):
+                        doc = data['response']['docs'][0]
+                        if 'centroide_ll' in doc:
+                            centroide = doc['centroide_ll']
+                            if centroide.startswith('POINT('):
+                                coords = centroide[6:-1]
+                                lon2, lat2 = coords.split(' ')
+                            else:
+                                lat2, lon2 = centroide.split(' ')
+                            lat2, lon2 = float(lat2), float(lon2)
+                            logger.info(f"Vacature geocoding succesvol met: {address}")
+                            break
+            except Exception as e:
+                logger.warning(f"Vacature geocoding gefaald met '{address}': {str(e)}")
+                continue
+        
+        # Fallback naar Nominatim
+        if lat2 is None or lon2 is None:
+            for i, address in enumerate(address_attempts):
+                if lat2 is not None and lon2 is not None:
+                    break  # Al gevonden
+                    
+                try:
+                    logger.info(f"Vacature Nominatim poging {i+1}: {address}")
+                    nominatim_url = "https://nominatim.openstreetmap.org/search"
+                    params = {
+                        'q': address,
+                        'format': 'json',
+                        'limit': 1,
+                        'countrycodes': 'nl'
+                    }
+                    
+                    response = requests.get(nominatim_url, params=params, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data:
+                            lat2 = float(data[0]['lat'])
+                            lon2 = float(data[0]['lon'])
+                            logger.info(f"Vacature Nominatim succesvol met: {address}")
+                            break
+                except Exception as e:
+                    logger.warning(f"Vacature Nominatim gefaald met '{address}': {str(e)}")
+                    continue
+        
         if not lat2 or not lon2:
             logger.warning(f"Kon vacature plaats {vacature_plaats} niet geocoderen")
             return None
