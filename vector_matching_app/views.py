@@ -1193,7 +1193,6 @@ def calculate_distances_view(request):
         }, status=500)
 
 
-@login_required
 @require_http_methods(["GET"])
 def location_search_view(request):
     """Zoek plaatsen op basis van query voor autocomplete."""
@@ -1224,7 +1223,13 @@ def location_search_view(request):
                 centroide = doc.get('centroide_ll', '')
                 
                 if place_name and centroide:
-                    lat, lon = centroide.split(' ')
+                    # Parse POINT(lon lat) format
+                    if centroide.startswith('POINT('):
+                        coords = centroide[6:-1]  # Remove 'POINT(' and ')'
+                        lon, lat = coords.split(' ')
+                    else:
+                        lat, lon = centroide.split(' ')
+                    
                     results.append({
                         'name': place_name,
                         'postcode': postcode,
@@ -1240,40 +1245,35 @@ def location_search_view(request):
     return JsonResponse({'results': []})
 
 
-@login_required
 @require_http_methods(["GET"])
 def postcode_suggest_view(request):
     """Suggereer postcode op basis van plaatsnaam."""
-    import requests
-    
-    place = request.GET.get('place', '').strip()
+    place = request.GET.get('place', '').strip().lower()
     if not place:
         return JsonResponse({'postcodes': []})
     
-    try:
-        # Zoek postcodes voor plaats via PDOK
-        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup"
-        params = {
-            'q': place,
-            'fl': 'weergavenaam,postcode,centroide_ll',
-            'rows': 20,
-            'fq': 'type:woonplaats'
-        }
-        
-        response = requests.get(pdok_url, params=params, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            postcodes = set()
-            
-            for doc in data.get('response', {}).get('docs', []):
-                postcode = doc.get('postcode', '')
-                if postcode and len(postcode) == 6:  # Nederlandse postcode format
-                    postcodes.add(postcode)
-            
-            return JsonResponse({'postcodes': sorted(list(postcodes))})
-        
-    except Exception as e:
-        logger.error(f"Fout bij zoeken postcodes: {str(e)}")
+    # Bekende postcodes voor grote steden (eenvoudige mapping)
+    city_postcodes = {
+        'amsterdam': ['1011', '1012', '1013', '1014', '1015', '1016', '1017', '1018', '1019', '1020'],
+        'rotterdam': ['3011', '3012', '3013', '3014', '3015', '3016', '3017', '3018', '3019', '3020'],
+        'den haag': ['2511', '2512', '2513', '2514', '2515', '2516', '2517', '2518', '2519', '2520'],
+        'utrecht': ['3511', '3512', '3513', '3514', '3515', '3516', '3517', '3518', '3519', '3520'],
+        'eindhoven': ['5611', '5612', '5613', '5614', '5615', '5616', '5617', '5618', '5619', '5620'],
+        'tilburg': ['5011', '5012', '5013', '5014', '5015', '5016', '5017', '5018', '5019', '5020'],
+        'groningen': ['9711', '9712', '9713', '9714', '9715', '9716', '9717', '9718', '9719', '9720'],
+        'almere': ['1311', '1312', '1313', '1314', '1315', '1316', '1317', '1318', '1319', '1320'],
+        'breda': ['4811', '4812', '4813', '4814', '4815', '4816', '4817', '4818', '4819', '4820'],
+        'nijmegen': ['6511', '6512', '6513', '6514', '6515', '6516', '6517', '6518', '6519', '6520'],
+    }
+    
+    # Zoek exacte match
+    if place in city_postcodes:
+        return JsonResponse({'postcodes': city_postcodes[place]})
+    
+    # Zoek gedeeltelijke match
+    for city, postcodes in city_postcodes.items():
+        if place in city or city in place:
+            return JsonResponse({'postcodes': postcodes[:5]})  # Max 5 suggesties
     
     return JsonResponse({'postcodes': []})
 

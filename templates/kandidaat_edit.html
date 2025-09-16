@@ -213,7 +213,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function searchPlaces(query) {
-        fetch(`{% url 'vector_matching_app:location_search' %}?q=${encodeURIComponent(query)}`)
+        const url = `{% url 'vector_matching_app:location_search' %}?q=${encodeURIComponent(query)}`;
+        
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 showCitySuggestions(data.results);
@@ -267,7 +269,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function suggestPostcodes(placeName) {
-        fetch(`{% url 'vector_matching_app:postcode_suggest' %}?place=${encodeURIComponent(placeName)}`)
+        const url = `{% url 'vector_matching_app:postcode_suggest' %}?place=${encodeURIComponent(placeName)}`;
+        
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (data.postcodes.length > 0) {
