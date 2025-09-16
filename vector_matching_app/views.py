@@ -1043,8 +1043,19 @@ def matching_view(request):
     """Toon matchresultaten tussen kandidaten en vacatures."""
     from .models import Match
     
-    # Haal echte matches op uit de database
-    matches = Match.objects.select_related('kandidaat', 'vacature').all()[:250]
+    # Haal echte matches op uit de database, gesorteerd op afstand status
+    # Eerst matches met afstand, dan zonder afstand
+    matches_with_distance = Match.objects.filter(
+        afstand_berekend=True
+    ).select_related('kandidaat', 'vacature').order_by('-score')
+    
+    matches_without_distance = Match.objects.filter(
+        afstand_berekend=False
+    ).select_related('kandidaat', 'vacature').order_by('-score')
+    
+    # Combineer en beperk tot 250
+    all_matches = list(matches_with_distance) + list(matches_without_distance)
+    matches = all_matches[:250]
     
     # Converteer naar format voor template
     matches_data = []
@@ -1094,6 +1105,66 @@ def generate_matches_view(request):
         return JsonResponse({
             'success': False,
             'error': f'Fout bij genereren matches: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def calculate_distances_view(request):
+    """Bereken afstanden voor alle matches die nog geen afstand hebben."""
+    try:
+        from .models import Match
+        from .tasks import calculate_distance_for_match
+        
+        # Haal alle matches op die nog geen afstand hebben
+        matches_without_distance = Match.objects.filter(
+            afstand_berekend=False
+        ).select_related('kandidaat', 'vacature')
+        
+        logger.info(f"Berekenen afstanden voor {matches_without_distance.count()} matches")
+        
+        # Bereken afstanden voor alle matches zonder afstand
+        calculated_count = 0
+        error_count = 0
+        
+        for match in matches_without_distance:
+            try:
+                # Controleer of beide partijen locatie hebben
+                if (match.kandidaat.latitude and match.kandidaat.longitude and 
+                    match.vacature.latitude and match.vacature.longitude):
+                    
+                    # Bereken afstand
+                    distance = calculate_distance_for_match(match)
+                    if distance is not None:
+                        match.afstand_km = distance
+                        match.afstand_berekend = True
+                        match.save()
+                        calculated_count += 1
+                    else:
+                        error_count += 1
+                else:
+                    # Geen locatie beschikbaar
+                    match.afstand_berekend = True  # Markeer als berekend om te voorkomen dat het opnieuw wordt geprobeerd
+                    match.save()
+                    error_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Fout bij berekenen afstand voor match {match.id}: {str(e)}")
+                error_count += 1
+                continue
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Afstanden berekend: {calculated_count} succesvol, {error_count} fouten',
+            'calculated': calculated_count,
+            'errors': error_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Fout bij berekenen afstanden: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Fout bij berekenen afstanden: {str(e)}'
         }, status=500)
 
 

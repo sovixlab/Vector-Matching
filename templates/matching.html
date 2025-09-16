@@ -20,6 +20,13 @@
                 </svg>
                 Filters (binnenkort)
             </button>
+            <button id="calculate-distances-btn" class="btn btn-secondary">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Bereken Afstanden
+            </button>
             <button id="generate-matches-btn" class="btn btn-primary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -551,6 +558,71 @@ document.addEventListener('DOMContentLoaded', function() {
                 progressModal.classList.remove('modal-open');
                 console.error('Error:', error);
                 alert('Fout bij genereren matches: ' + error.message);
+            });
+        });
+    }
+    
+    // Afstand berekening knop functionaliteit
+    const calculateDistancesBtn = document.getElementById('calculate-distances-btn');
+    if (calculateDistancesBtn) {
+        calculateDistancesBtn.addEventListener('click', function() {
+            const csrfToken = getCSRFToken();
+            
+            if (!csrfToken) {
+                alert('CSRF token niet gevonden. Pagina herladen...');
+                window.location.reload();
+                return;
+            }
+            
+            // Toon progress modal
+            progressModal.classList.add('modal-open');
+            progressText.textContent = 'Bezig met berekenen van afstanden...';
+            progressBar.style.width = '0%';
+            
+            // Simuleer progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 85) progress = 85;
+                
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `Bezig met berekenen van afstanden... ${Math.round(progress)}%`;
+            }, 300);
+            
+            // Maak AJAX request
+            fetch('{% url "vector_matching_app:calculate_distances" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                clearInterval(interval);
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Voltooid!';
+                
+                setTimeout(() => {
+                    progressModal.classList.remove('modal-open');
+                    if (data.success) {
+                        // Herlaad de pagina om nieuwe afstanden te tonen
+                        window.location.reload();
+                    } else {
+                        alert('Fout bij berekenen afstanden: ' + (data.error || 'Onbekende fout'));
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                clearInterval(interval);
+                progressModal.classList.remove('modal-open');
+                console.error('Error:', error);
+                alert('Fout bij berekenen afstanden: ' + error.message);
             });
         });
     }

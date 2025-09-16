@@ -850,3 +850,44 @@ def generate_matches():
     except Exception as e:
         logger.error(f"Fout bij genereren matches: {str(e)}")
         raise
+
+
+def calculate_distance_for_match(match):
+    """Bereken afstand tussen kandidaat en vacature locatie."""
+    import math
+    
+    try:
+        # Haal coördinaten op
+        lat1, lon1 = match.kandidaat.latitude, match.kandidaat.longitude
+        lat2, lon2 = match.vacature.latitude, match.vacature.longitude
+        
+        if not all([lat1, lon1, lat2, lon2]):
+            logger.warning(f"Ontbrekende coördinaten voor match {match.id}")
+            return None
+        
+        # Haversine formule voor afstand berekening
+        R = 6371  # Aardstraal in kilometers
+        
+        # Converteer naar radialen
+        lat1_rad = math.radians(lat1)
+        lon1_rad = math.radians(lon1)
+        lat2_rad = math.radians(lat2)
+        lon2_rad = math.radians(lon2)
+        
+        # Verschil in coördinaten
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        
+        # Haversine formule
+        a = (math.sin(dlat/2)**2 + 
+             math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2)
+        c = 2 * math.asin(math.sqrt(a))
+        
+        # Afstand in kilometers
+        distance = R * c
+        
+        return round(distance, 1)
+        
+    except Exception as e:
+        logger.error(f"Fout bij berekenen afstand voor match {match.id}: {str(e)}")
+        return None

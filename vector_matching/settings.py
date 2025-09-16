@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',  # Use whitenoise for static files
     'django.contrib.staticfiles',
     'vector_matching_app',  # Our main app
-    # 'backup_system',  # Tijdelijk uitgeschakeld voor migraties  # Backup management system
+    'backup_system_disabled',  # Backup management system
 ]
 
 MIDDLEWARE = [
