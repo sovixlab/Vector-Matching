@@ -25,7 +25,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
-                Bereken Afstanden
+                Bereken Ontbrekende Afstanden
             </button>
             <button id="generate-matches-btn" class="btn btn-primary">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@
                 <div class="form-control">
                     <label class="label">
                         <span class="label-text">Maximale afstand</span>
-                        <span id="afstand-loading-status" class="text-xs text-base-content/60">(Laden...)</span>
+                        <span id="afstand-loading-status" class="text-xs text-base-content/60">(Klik op knop om afstanden te berekenen)</span>
                     </label>
                     <input type="range" min="0" max="100" value="50" class="range range-secondary" id="afstand-filter" disabled />
                     <div class="w-full flex justify-between text-xs px-2">
@@ -171,11 +171,18 @@
                                      id="afstand-{{ match.kandidaat_id }}-{{ match.vacature_id }}"
                                      data-match-id="{{ match.match_id }}">
                                     {% if match.afstand_berekend %}
-                                        <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        </svg>
-                                        <span class="font-medium">{{ match.afstand_km|floatformat:1 }} km</span>
+                                        {% if match.afstand_km %}
+                                            <svg class="w-4 h-4 mr-1 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                            <span class="font-medium">{{ match.afstand_km|floatformat:1 }} km</span>
+                                        {% else %}
+                                            <svg class="w-4 h-4 mr-1 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <span class="text-base-content/40">Onbekend</span>
+                                        {% endif %}
                                     {% else %}
                                         <div class="loading loading-spinner loading-sm text-primary"></div>
                                         <span class="ml-2 text-base-content/60">Laden...</span>
@@ -297,14 +304,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return window.csrfToken || '';
     }
     
-    // Laad afstanden voor alle matches
+    // Laad afstanden voor matches die nog geen afstand hebben
     function loadAfstanden() {
+        // Alleen elementen die nog "Laden..." tonen
         const afstandElements = document.querySelectorAll('[id^="afstand-"]');
+        const loadingElements = Array.from(afstandElements).filter(element => 
+            element.textContent.includes('Laden...')
+        );
+        
         let loadedCount = 0;
         let errorCount = 0;
-        const totalCount = afstandElements.length;
+        const totalCount = loadingElements.length;
         
-        console.log(`Gevonden ${totalCount} afstand elementen`);
+        console.log(`Gevonden ${totalCount} afstand elementen die nog geladen moeten worden`);
         
         // Update loading status
         updateLoadingStatus(loadedCount, totalCount);
@@ -314,19 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Toon loading indicator voor alle elementen
-        afstandElements.forEach(element => {
-            element.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="w-4 h-4 mr-1 text-base-content/40 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    <span class="text-base-content/40">Laden...</span>
-                </div>
-            `;
-        });
-        
-        afstandElements.forEach(element => {
+        loadingElements.forEach(element => {
             // Zoek de match ID uit de data attribute van het element zelf
             const matchId = element.dataset.matchId;
             console.log(`Element ${element.id}, matchId: ${matchId}`);
@@ -406,8 +406,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update loading status
     function updateLoadingStatus(loaded, total) {
         if (afstandLoadingStatus) {
-            const percentage = Math.round((loaded / total) * 100);
-            afstandLoadingStatus.textContent = `(Laden... ${loaded}/${total} - ${percentage}%)`;
+            if (total === 0) {
+                afstandLoadingStatus.textContent = '(Alle afstanden al berekend)';
+                afstandLoadingStatus.className = 'text-xs text-success';
+            } else {
+                const percentage = Math.round((loaded / total) * 100);
+                afstandLoadingStatus.textContent = `(Laden... ${loaded}/${total} - ${percentage}%)`;
+                afstandLoadingStatus.className = 'text-xs text-warning';
+            }
         }
     }
     
@@ -418,10 +424,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (afstandLoadingStatus) {
             if (errorCount === 0) {
-                afstandLoadingStatus.textContent = '(Geladen)';
+                afstandLoadingStatus.textContent = '(Afstanden geladen)';
                 afstandLoadingStatus.className = 'text-xs text-success';
             } else {
-                afstandLoadingStatus.textContent = `(Geladen - ${errorCount} fouten)`;
+                afstandLoadingStatus.textContent = `(Afstanden geladen - ${errorCount} fouten)`;
                 afstandLoadingStatus.className = 'text-xs text-warning';
             }
         }
@@ -611,8 +617,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     progressModal.classList.remove('modal-open');
                     if (data.success) {
-                        // Herlaad de pagina om nieuwe afstanden te tonen
-                        window.location.reload();
+                        // Laad de nieuwe afstanden in de frontend
+                        loadAfstanden();
                     } else {
                         alert('Fout bij berekenen afstanden: ' + (data.error || 'Onbekende fout'));
                     }
@@ -627,8 +633,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Start het laden van afstanden zodra de pagina geladen is
-    loadAfstanden();
+    // Start het laden van afstanden alleen als er matches zijn zonder afstand
+    // Dit wordt nu alleen gedaan via de knop
+    // loadAfstanden();
 });
 </script>
 {% endblock %}

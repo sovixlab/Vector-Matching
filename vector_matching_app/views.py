@@ -1143,13 +1143,18 @@ def calculate_distances_view(request):
                     else:
                         error_count += 1
                 else:
-                    # Geen locatie beschikbaar
+                    # Geen locatie beschikbaar - sla None op voor afstand
+                    match.afstand_km = None
                     match.afstand_berekend = True  # Markeer als berekend om te voorkomen dat het opnieuw wordt geprobeerd
                     match.save()
                     error_count += 1
                     
             except Exception as e:
                 logger.error(f"Fout bij berekenen afstand voor match {match.id}: {str(e)}")
+                # Markeer als berekend met None om herhaling te voorkomen
+                match.afstand_km = None
+                match.afstand_berekend = True
+                match.save()
                 error_count += 1
                 continue
         
