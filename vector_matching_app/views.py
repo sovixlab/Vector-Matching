@@ -377,6 +377,11 @@ def kandidaat_edit_view(request, candidate_id):
             new_city = request.POST.get('city', '')
             new_postal_code = request.POST.get('postal_code', '')
             
+            # Gebruik volledige plaatsnaam als beschikbaar
+            city_full = request.POST.get('city_full', '')
+            if city_full:
+                new_city = city_full
+            
             if new_city and not new_postal_code:
                 try:
                     from .tasks import get_postcode_for_city
@@ -384,7 +389,7 @@ def kandidaat_edit_view(request, candidate_id):
                     if suggested_postcode:
                         candidate.postal_code = suggested_postcode
                         candidate.save(update_fields=['postal_code', 'updated_at'])
-                        messages.info(request, f'Postcode {suggested_postcode} automatisch toegevoegd voor {new_city}')
+                        messages.info(request, f'Postcode {suggested_postcode} automatisch toegevoegd voor {new_city.split(",")[0].strip()}')
                 except Exception as postcode_error:
                     logger.warning(f"Auto-postcode gefaald voor kandidaat {candidate_id}: {str(postcode_error)}")
             

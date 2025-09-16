@@ -118,9 +118,9 @@
                             <span class="label-text text-base-content/70">Plaats *</span>
                         </label>
                         <div class="relative">
-                            <input type="text" name="city" id="city-input" value="{{ candidate.city|default:'' }}" 
+                            <input type="text" name="city" id="city-input" value="{{ candidate.city_display|default:'' }}" 
                                    class="input input-bordered w-full" placeholder="Typ plaatsnaam..." autocomplete="off">
-                            <input type="hidden" name="city_full" id="city-full-input" value="">
+                            <input type="hidden" name="city_full" id="city-full-input" value="{{ candidate.city|default:'' }}">
                             <div id="city-suggestions" class="absolute z-10 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
                                 <!-- Suggestions will be populated here -->
                             </div>

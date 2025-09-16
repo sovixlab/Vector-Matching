@@ -351,26 +351,25 @@ def get_postcode_for_city(city_name):
     import requests
     
     try:
-        # Zoek plaatsen via PDOK
-        pdok_url = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest"
+        # Probeer eerst Nominatim voor postcode informatie
+        nominatim_url = "https://nominatim.openstreetmap.org/search"
         params = {
-            'q': city_name,
-            'fl': 'weergavenaam,postcode,centroide_ll',
-            'rows': 10,
-            'fq': 'type:woonplaats'
+            'q': f"{city_name}, Nederland",
+            'format': 'json',
+            'limit': 5,
+            'countrycodes': 'nl',
+            'addressdetails': 1
         }
         
-        response = requests.get(pdok_url, params=params, timeout=5)
+        response = requests.get(nominatim_url, params=params, timeout=5)
         if response.status_code == 200:
             data = response.json()
             
-            for doc in data.get('response', {}).get('docs', []):
-                place_name = doc.get('weergavenaam', '')
-                postcode = doc.get('postcode', '')
+            for result in data:
+                address = result.get('address', {})
+                postcode = address.get('postcode', '')
                 
-                # Controleer of de plaatsnaam overeenkomt
-                if (place_name and postcode and len(postcode) == 6 and 
-                    city_name.lower() in place_name.lower()):
+                if postcode and len(postcode) == 6:  # Nederlandse postcode format
                     return postcode
         
         # Fallback: gebruik bekende postcodes voor grote steden
@@ -385,6 +384,8 @@ def get_postcode_for_city(city_name):
             'almere': '1311',
             'breda': '4811',
             'nijmegen': '6511',
+            'wijhe': '8131',  # Toegevoegd voor Wijhe
+            'olst': '8121',   # Toegevoegd voor Olst
         }
         
         city_lower = city_name.lower().strip()
@@ -406,29 +407,38 @@ def geocode_candidate(candidate_id):
         
         # Auto-vul postcode als alleen plaatsnaam beschikbaar is
         if candidate.city and not candidate.postal_code:
-            suggested_postcode = get_postcode_for_city(candidate.city)
+            # Gebruik alleen de eerste deel van de plaatsnaam voor postcode lookup
+            city_name = candidate.city.split(',')[0].strip()
+            suggested_postcode = get_postcode_for_city(city_name)
             if suggested_postcode:
                 candidate.postal_code = suggested_postcode
                 candidate.save(update_fields=['postal_code', 'updated_at'])
-                logger.info(f"Auto-toegevoegde postcode {suggested_postcode} voor plaats {candidate.city}")
+                logger.info(f"Auto-toegevoegde postcode {suggested_postcode} voor plaats {city_name}")
         
-        # Bereid adres voor
-        address_parts = []
-        if candidate.street:
-            address_parts.append(candidate.street)
-        if candidate.house_number:
-            address_parts.append(candidate.house_number)
-        if candidate.postal_code:
-            address_parts.append(candidate.postal_code)
-        if candidate.city:
-            address_parts.append(candidate.city)
-        
-        if not address_parts:
-            logger.warning(f"Geen adres informatie gevonden voor kandidaat {candidate_id}")
-            candidate.update_status('completed', 'Geocoding', 'Geen adres informatie')
-            return
-        
-        address = ', '.join(address_parts)
+        # Bereid adres voor - gebruik postcode + plaats voor nauwkeurigere geocoding
+        if candidate.postal_code and candidate.city:
+            # Gebruik postcode + plaats combinatie voor beste nauwkeurigheid
+            address = f"{candidate.postal_code} {candidate.city}"
+            logger.info(f"Gebruik postcode + plaats voor geocoding: {address}")
+        else:
+            # Fallback naar volledige adres
+            address_parts = []
+            if candidate.street:
+                address_parts.append(candidate.street)
+            if candidate.house_number:
+                address_parts.append(candidate.house_number)
+            if candidate.postal_code:
+                address_parts.append(candidate.postal_code)
+            if candidate.city:
+                address_parts.append(candidate.city)
+            
+            if not address_parts:
+                logger.warning(f"Geen adres informatie gevonden voor kandidaat {candidate_id}")
+                candidate.update_status('completed', 'Geocoding', 'Geen adres informatie')
+                return
+            
+            address = ', '.join(address_parts)
+            logger.info(f"Gebruik volledige adres voor geocoding: {address}")
         lat, lon = None, None
         
         # Probeer eerst PDOK Locatieserver

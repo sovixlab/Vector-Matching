@@ -98,9 +98,18 @@ class Candidate(models.Model):
         return status_icons.get(self.embed_status, '❓')
     
     @property
+    def city_display(self):
+        """Retourneert alleen de eerste deel van de plaatsnaam (voor de komma)."""
+        if self.city:
+            return self.city.split(',')[0].strip()
+        return ''
+    
+    @property
     def full_address(self):
         """Retourneert het volledige adres."""
-        parts = [self.street, self.house_number, self.postal_code, self.city]
+        # Toon alleen de eerste deel van de plaatsnaam (voor de komma)
+        city_display = self.city_display
+        parts = [self.street, self.house_number, self.postal_code, city_display]
         return ' '.join(filter(None, parts))
     
     def update_status(self, status, step='', error=''):
