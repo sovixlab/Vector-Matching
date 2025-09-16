@@ -1220,21 +1220,30 @@ def generate_matches_view(request):
 def calculate_distances_view(request):
     """Bereken afstanden voor alle matches die nog geen afstand hebben."""
     try:
-        from .models import Match
+        from .models import Match, Candidate, Vacature
         from .tasks import calculate_distance_for_match
         
-        # Haal alle matches op die nog geen afstand hebben
-        matches_without_distance = Match.objects.filter(
-            afstand_berekend=False
-        ).select_related('kandidaat', 'vacature')
+        # Debug: toon database status
+        total_matches = Match.objects.count()
+        matches_without_distance = Match.objects.filter(afstand_berekend=False)
+        matches_with_distance = Match.objects.filter(afstand_berekend=True)
+        total_candidates = Candidate.objects.count()
+        total_vacatures = Vacature.objects.count()
+        candidates_with_location = Candidate.objects.filter(latitude__isnull=False, longitude__isnull=False).count()
         
-        logger.info(f"Berekenen afstanden voor {matches_without_distance.count()} matches")
+        logger.info(f"Database status - Matches: {total_matches} (zonder afstand: {matches_without_distance.count()}, met afstand: {matches_with_distance.count()})")
+        logger.info(f"Candidaten: {total_candidates} (met locatie: {candidates_with_location}), Vacatures: {total_vacatures}")
+        
+        # Haal alle matches op die nog geen afstand hebben
+        matches_to_process = matches_without_distance.select_related('kandidaat', 'vacature')
+        
+        logger.info(f"Berekenen afstanden voor {matches_to_process.count()} matches")
         
         # Bereken afstanden voor alle matches zonder afstand
         calculated_count = 0
         error_count = 0
         
-        for match in matches_without_distance:
+        for match in matches_to_process:
             try:
                 # Controleer of kandidaat locatie heeft en vacature plaatsnaam
                 if (match.kandidaat.latitude and match.kandidaat.longitude and 
@@ -1363,6 +1372,42 @@ def postcode_suggest_view(request):
             return JsonResponse({'postcodes': postcodes[:5]})  # Max 5 suggesties
     
     return JsonResponse({'postcodes': []})
+
+
+@login_required
+def debug_database_status_view(request):
+    """Debug view om database status te bekijken."""
+    from .models import Match, Candidate, Vacature
+    
+    total_matches = Match.objects.count()
+    matches_without_distance = Match.objects.filter(afstand_berekend=False).count()
+    matches_with_distance = Match.objects.filter(afstand_berekend=True).count()
+    total_candidates = Candidate.objects.count()
+    total_vacatures = Vacature.objects.count()
+    candidates_with_location = Candidate.objects.filter(latitude__isnull=False, longitude__isnull=False).count()
+    candidates_with_embedding = Candidate.objects.filter(embedding__isnull=False).count()
+    vacatures_with_embedding = Vacature.objects.filter(embedding__isnull=False).count()
+    
+    # Sample data
+    sample_matches = list(Match.objects.select_related('kandidaat', 'vacature')[:5])
+    sample_candidates = list(Candidate.objects.all()[:5])
+    sample_vacatures = list(Vacature.objects.all()[:5])
+    
+    context = {
+        'total_matches': total_matches,
+        'matches_without_distance': matches_without_distance,
+        'matches_with_distance': matches_with_distance,
+        'total_candidates': total_candidates,
+        'total_vacatures': total_vacatures,
+        'candidates_with_location': candidates_with_location,
+        'candidates_with_embedding': candidates_with_embedding,
+        'vacatures_with_embedding': vacatures_with_embedding,
+        'sample_matches': sample_matches,
+        'sample_candidates': sample_candidates,
+        'sample_vacatures': sample_vacatures,
+    }
+    
+    return render(request, 'debug_database_status.html', context)
 
 
 @login_required

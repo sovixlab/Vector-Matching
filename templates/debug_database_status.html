@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Database Status Debug{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Database Status Debug</h1>
+    
+    <!-- Overzicht -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-primary">Matches</h2>
+                <p class="text-2xl font-bold">{{ total_matches }}</p>
+                <p class="text-sm text-base-content/70">
+                    Zonder afstand: {{ matches_without_distance }}<br>
+                    Met afstand: {{ matches_with_distance }}
+                </p>
+            </div>
+        </div>
+        
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-secondary">Kandidaten</h2>
+                <p class="text-2xl font-bold">{{ total_candidates }}</p>
+                <p class="text-sm text-base-content/70">
+                    Met locatie: {{ candidates_with_location }}<br>
+                    Met embedding: {{ candidates_with_embedding }}
+                </p>
+            </div>
+        </div>
+        
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-accent">Vacatures</h2>
+                <p class="text-2xl font-bold">{{ total_vacatures }}</p>
+                <p class="text-sm text-base-content/70">
+                    Met embedding: {{ vacatures_with_embedding }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sample Matches -->
+    {% if sample_matches %}
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Sample Matches ({{ sample_matches|length }})</h2>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Kandidaat</th>
+                            <th>Vacature</th>
+                            <th>Score</th>
+                            <th>Afstand</th>
+                            <th>Berekend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for match in sample_matches %}
+                        <tr>
+                            <td>{{ match.id }}</td>
+                            <td>{{ match.kandidaat.name|default:"Geen naam" }}</td>
+                            <td>{{ match.vacature.titel|default:"Geen titel" }}</td>
+                            <td>{{ match.score }}%</td>
+                            <td>{{ match.afstand_km|default:"N/A" }}</td>
+                            <td>
+                                {% if match.afstand_berekend %}
+                                    <span class="badge badge-success">Ja</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Nee</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Sample Kandidaten -->
+    {% if sample_candidates %}
+    <div class="card bg-base-100 shadow-xl mb-8">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Sample Kandidaten ({{ sample_candidates|length }})</h2>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Naam</th>
+                            <th>Plaats</th>
+                            <th>Coördinaten</th>
+                            <th>Embedding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for candidate in sample_candidates %}
+                        <tr>
+                            <td>{{ candidate.id }}</td>
+                            <td>{{ candidate.name|default:"Geen naam" }}</td>
+                            <td>{{ candidate.city_display|default:"Geen plaats" }}</td>
+                            <td>
+                                {% if candidate.latitude and candidate.longitude %}
+                                    {{ candidate.latitude|floatformat:4 }}, {{ candidate.longitude|floatformat:4 }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if candidate.embedding %}
+                                    <span class="badge badge-success">Ja</span>
+                                {% else %}
+                                    <span class="badge badge-error">Nee</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Sample Vacatures -->
+    {% if sample_vacatures %}
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Sample Vacatures ({{ sample_vacatures|length }})</h2>
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Titel</th>
+                            <th>Organisatie</th>
+                            <th>Plaats</th>
+                            <th>Embedding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vacature in sample_vacatures %}
+                        <tr>
+                            <td>{{ vacature.id }}</td>
+                            <td>{{ vacature.titel|default:"Geen titel" }}</td>
+                            <td>{{ vacature.organisatie|default:"Geen organisatie" }}</td>
+                            <td>{{ vacature.plaats|default:"Geen plaats" }}</td>
+                            <td>
+                                {% if vacature.embedding %}
+                                    <span class="badge badge-success">Ja</span>
+                                {% else %}
+                                    <span class="badge badge-error">Nee</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Acties -->
+    <div class="card bg-base-100 shadow-xl mt-8">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Acties</h2>
+            <div class="flex gap-4">
+                <a href="{% url 'vector_matching_app:matching' %}" class="btn btn-primary">
+                    Naar Matching Pagina
+                </a>
+                <a href="{% url 'vector_matching_app:kandidaten' %}" class="btn btn-secondary">
+                    Naar Kandidaten
+                </a>
+                <a href="{% url 'vector_matching_app:vacatures' %}" class="btn btn-accent">
+                    Naar Vacatures
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/vacatures/update/', views.api_vacatures_update_view, name='api_vacatures_update'),
     path('api/location/search/', views.location_search_view, name='location_search'),
     path('api/location/postcode-suggest/', views.postcode_suggest_view, name='postcode_suggest'),
+    path('debug/database-status/', views.debug_database_status_view, name='debug_database_status'),
     
     # Prompt Management URLs
     path('prompts/', views.prompts_list_view, name='prompts'),
