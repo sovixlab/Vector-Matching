@@ -203,9 +203,15 @@ class Prompt(models.Model):
     @property
     def all_versions(self):
         """Krijg alle versies van deze prompt."""
+        # Als dit een child versie is, zoek alle versies van de parent
         if self.parent:
             return Prompt.objects.filter(parent=self.parent).order_by('-version')
-        return Prompt.objects.filter(parent=self).order_by('-version')
+        # Als dit een parent is, zoek alle child versies
+        elif Prompt.objects.filter(parent=self).exists():
+            return Prompt.objects.filter(parent=self).order_by('-version')
+        # Als dit een standalone prompt is, zoek alle prompts met dezelfde naam
+        else:
+            return Prompt.objects.filter(name=self.name).order_by('-version')
     
     @classmethod
     def get_active_prompt(cls, prompt_type):

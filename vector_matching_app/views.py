@@ -654,7 +654,9 @@ CV tekst:
 def prompt_detail_view(request, prompt_id):
     """Detail weergave van een prompt met versiegeschiedenis."""
     prompt = get_object_or_404(Prompt, id=prompt_id)
-    versions = prompt.all_versions
+    
+    # Haal alle versies op van deze prompt (op basis van naam)
+    versions = Prompt.objects.filter(name=prompt.name).order_by('-version')
     logs = PromptLog.objects.filter(prompt__in=versions).order_by('-timestamp')[:20]
     
     context = {
