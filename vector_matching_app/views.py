@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.db import connection
+from django.db import connection, models
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -578,11 +578,17 @@ def kandidaten_bulk_geocode_view(request):
 # Prompt Management Views
 @login_required
 def prompts_list_view(request):
-    """Overzicht van alle prompts."""
+    """Overzicht van alle prompts - alleen unieke prompts per naam."""
     # Zorg ervoor dat de standaard prompts bestaan
     _ensure_default_prompts()
     
-    prompts = Prompt.objects.all().order_by('name', '-version')
+    # Haal alleen de nieuwste versie van elke unieke prompt op
+    prompts = Prompt.objects.filter(
+        id__in=Prompt.objects.values('name').annotate(
+            latest_id=models.Max('id')
+        ).values_list('latest_id', flat=True)
+    ).order_by('name')
+    
     return render(request, 'prompts.html', {'prompts': prompts})
 
 

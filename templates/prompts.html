@@ -49,9 +49,9 @@
                             <tr>
                                 <th class="text-base-content">Naam</th>
                                 <th class="text-base-content">Type</th>
-                                <th class="text-base-content">Versie</th>
+                                <th class="text-base-content">Huidige Versie</th>
                                 <th class="text-base-content">Status</th>
-                                <th class="text-base-content">Aangemaakt</th>
+                                <th class="text-base-content">Laatst Bijgewerkt</th>
                                 <th class="text-base-content">Acties</th>
                             </tr>
                         </thead>
@@ -65,13 +65,22 @@
                                         <div class="text-xs text-primary mt-1">📝 Gebruikt voor kandidaten samenvattingen</div>
                                     {% elif prompt.prompt_type == 'cv_parsing' %}
                                         <div class="text-xs text-primary mt-1">🔍 Gebruikt voor CV data extractie</div>
+                                    {% elif prompt.prompt_type == 'vacature_summary' %}
+                                        <div class="text-xs text-primary mt-1">📋 Gebruikt voor vacature samenvattingen</div>
                                     {% endif %}
                                 </td>
                                 <td>
                                     <div class="badge badge-outline">{{ prompt.get_prompt_type_display }}</div>
                                 </td>
                                 <td class="text-base-content/70">
-                                    v{{ prompt.version }}
+                                    <div class="font-medium">v{{ prompt.version }}</div>
+                                    <div class="text-xs text-base-content/50">
+                                        {% if prompt.all_versions.count > 1 %}
+                                            {{ prompt.all_versions.count }} versies totaal
+                                        {% else %}
+                                            Eerste versie
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td>
                                     {% if prompt.is_active %}
@@ -81,7 +90,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-base-content/70">
-                                    {{ prompt.created_at|date:"d-m-Y H:i" }}
+                                    {{ prompt.updated_at|date:"d-m-Y H:i" }}
                                 </td>
                                 <td>
                                     <div class="flex gap-2">
